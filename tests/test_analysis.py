@@ -45,7 +45,7 @@ class TestAnalyzePart:
         mock_secret.return_value = None
         result = analyze_part(tmp_db, part_with_datasheet, method="openrouter")
         assert "error" in result
-        assert "API key" in result["error"]
+        assert "not configured" in result["error"]
 
     @patch("jlcpcb_tool.analysis.requests.post")
     @patch("jlcpcb_tool.analysis.get_secret")

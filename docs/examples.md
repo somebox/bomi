@@ -162,6 +162,67 @@ jlcpcb search "USB Type-C connector" --min-stock 100 --format json
 jlcpcb search "tactile switch SMD" --basic-only --format json
 ```
 
+## Project Workflow
+
+### Start a new PCB project
+```bash
+mkdir my-board && cd my-board
+git init
+jlcpcb init --name "my-board" --description "Motor driver board"
+# Creates .jlcpcb/project.yaml
+git add .jlcpcb/project.yaml
+```
+
+### Research and select components
+```bash
+# Research phase — no project needed
+jlcpcb search "100nF 0402 X7R"
+jlcpcb compare C1525 C2345 C6789
+jlcpcb info C1525
+
+# Select into BOM (auto-fetches if not in cache)
+jlcpcb select C1525 --ref C1-C4 --qty 4 --notes "Bypass caps"
+jlcpcb select C347356 --ref U2-U4 --qty 3 --notes "PT4115 LED driver"
+git commit -am "Add bypass caps and LED drivers to BOM"
+```
+
+### BOM management
+```bash
+jlcpcb bom                    # Table view
+jlcpcb bom --check            # Refresh from API, flag stock issues
+jlcpcb bom --format csv       # Export for JLCPCB order
+jlcpcb bom --format json      # Machine-readable for agents
+jlcpcb status                 # Quick overview with cost estimate
+```
+
+### After schematic changes — relabel parts
+```bash
+jlcpcb relabel C1-C4 C1-C3   # Removed one cap
+jlcpcb relabel U2-U4 U3-U5   # Shifted IC numbering
+jlcpcb deselect R99           # Remove a part entirely
+```
+
+### Access project from outside its directory
+```bash
+# Via CLI flag
+jlcpcb --project ~/Projects/my-board bom
+
+# Via environment variable
+export JLCPCB_PROJECT=~/Projects/my-board
+jlcpcb status
+```
+
+### Agent workflow with project
+```bash
+# Check BOM health (agent runs this, interprets JSON)
+jlcpcb bom --check --format json
+
+# Find cheaper alternative to a part
+jlcpcb info C114581
+jlcpcb search "WS2811" --format json
+# Agent compares options and suggests a swap
+```
+
 ## Database Management
 
 ```bash

@@ -127,6 +127,141 @@ class TestDbCommands:
         assert "cleared" in result.output
 
 
+class TestInit:
+    def test_init_creates_project(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(cli, ["init", "--name", "test-board"])
+        assert result.exit_code == 0
+        assert "Created" in result.output
+        assert (tmp_path / ".jlcpcb" / "project.yaml").exists()
+
+    def test_init_already_exists(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".jlcpcb").mkdir()
+        (tmp_path / ".jlcpcb" / "project.yaml").write_text("name: existing\n")
+        result = runner.invoke(cli, ["init", "--name", "test"])
+        assert result.exit_code != 0
+        assert "already exists" in result.output
+
+
+class TestSelect:
+    def test_select_cached_part(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr(
+            "jlcpcb_tool.project.get_db_path",
+            lambda: patched_db.db_path,
+        )
+        result = runner.invoke(cli, ["select", "C8287", "--ref", "R1", "--qty", "2"])
+        assert result.exit_code == 0
+        assert "R1" in result.output
+
+    def test_select_no_project(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("JLCPCB_PROJECT", raising=False)
+        result = runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        assert result.exit_code != 0
+        assert "No project" in result.output
+
+
+class TestDeselect:
+    def test_deselect(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr(
+            "jlcpcb_tool.project.get_db_path",
+            lambda: patched_db.db_path,
+        )
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["deselect", "R1"])
+        assert result.exit_code == 0
+        assert "Removed" in result.output
+
+    def test_deselect_not_found(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        result = runner.invoke(cli, ["deselect", "R99"])
+        assert result.exit_code != 0
+        assert "not found" in result.output
+
+
+class TestRelabel:
+    def test_relabel(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr(
+            "jlcpcb_tool.project.get_db_path",
+            lambda: patched_db.db_path,
+        )
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["relabel", "R1", "R2"])
+        assert result.exit_code == 0
+        assert "R2" in result.output
+
+
+class TestBom:
+    def test_bom_table(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr(
+            "jlcpcb_tool.project.get_db_path",
+            lambda: patched_db.db_path,
+        )
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["bom"])
+        assert result.exit_code == 0
+        assert "C8287" in result.output
+
+    def test_bom_json(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr(
+            "jlcpcb_tool.project.get_db_path",
+            lambda: patched_db.db_path,
+        )
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["bom", "--format", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["status"] == "ok"
+        assert len(data["data"]) == 1
+
+    def test_bom_csv(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr(
+            "jlcpcb_tool.project.get_db_path",
+            lambda: patched_db.db_path,
+        )
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["bom", "--format", "csv"])
+        assert result.exit_code == 0
+        assert "Ref,LCSC" in result.output
+        assert "C8287" in result.output
+
+    def test_bom_no_project(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("JLCPCB_PROJECT", raising=False)
+        result = runner.invoke(cli, ["bom"])
+        assert result.exit_code != 0
+
+
+class TestStatus:
+    def test_status(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr(
+            "jlcpcb_tool.project.get_db_path",
+            lambda: patched_db.db_path,
+        )
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["status"])
+        assert result.exit_code == 0
+        assert "test" in result.output
+        assert "Selections: 1" in result.output
+        assert "Est. cost:" in result.output
+
+
 class TestSearch:
     @patch("jlcpcb_tool.cli.JLCPCBClient")
     def test_search_calls_api(self, mock_client_cls, runner, patched_db,

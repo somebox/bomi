@@ -1,6 +1,3 @@
-secrets.yaml
-data/
-*.db
 __pycache__/
 .venv/
 *.pyc
@@ -8,6 +5,11 @@ __pycache__/
 dist/
 build/
 .pytest_cache/
-tests/fixtures/datasheets/*.pdf
-*.sqlite3
 .uv/
+*.db
+*.sqlite3
+tests/fixtures/datasheets/*.pdf
+
+# Legacy local data (migrated to ~/Library/Application Support/jlcpcb/)
+data/
+secrets.yaml

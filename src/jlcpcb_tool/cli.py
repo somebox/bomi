@@ -1,11 +1,13 @@
 """Click CLI commands."""
 
+import json
 import sys
+from pathlib import Path
 
 import click
 
 from .api import JLCPCBClient
-from .config import get_db_path
+from .config import find_project_dir, get_db_path
 from .db import Database
 from .normalize import get_search_metadata, normalize_search_response
 from .output import format_compare, format_envelope, format_part_detail, format_parts
@@ -29,9 +31,28 @@ _attr_option = click.option(
 
 
 @click.group()
-def cli():
+@click.option("--project", "project_path", default=None,
+              help="Path to project directory (overrides auto-detection)")
+@click.pass_context
+def cli(ctx, project_path):
     """JLCPCB/LCSC component research tool."""
-    pass
+    ctx.ensure_object(dict)
+    ctx.obj["project_path"] = project_path
+
+
+def _require_project(ctx) -> "Project":
+    """Load project from context, or error if not found."""
+    from .project import load_project
+
+    project_path = ctx.obj.get("project_path")
+    project_dir = find_project_dir(override=project_path)
+    if not project_dir:
+        click.echo("No project found. Run 'jlcpcb init' or use --project.", err=True)
+        sys.exit(1)
+    return load_project(project_dir)
+
+
+# ── Existing commands (unchanged, work without project) ──────────────
 
 
 @cli.command()
@@ -268,6 +289,233 @@ def clear():
         click.echo("Database cleared.")
     finally:
         database.close()
+
+
+# ── New project commands ─────────────────────────────────────────────
+
+
+@cli.command()
+@click.option("--name", prompt="Project name", help="Project name")
+@click.option("--description", "desc", default="", help="Project description")
+@click.pass_context
+def init(ctx, name, desc):
+    """Initialize a new project in the current directory."""
+    from .project import init_project
+
+    directory = Path.cwd()
+    project_yaml = directory / ".jlcpcb" / "project.yaml"
+    if project_yaml.exists():
+        click.echo(f"Project already exists at {project_yaml}", err=True)
+        sys.exit(1)
+
+    project = init_project(directory, name=name, description=desc)
+    click.echo(f"Created {project_yaml}")
+
+
+@cli.command()
+@click.argument("lcsc_code")
+@click.option("--ref", required=True, help="Reference designator (e.g. R1, U2-U4)")
+@click.option("--qty", type=int, default=1, help="Quantity")
+@click.option("--notes", default="", help="Notes about this selection")
+@click.pass_context
+def select(ctx, lcsc_code, ref, qty, notes):
+    """Add a component to the project BOM."""
+    from .project import add_selection
+
+    project = _require_project(ctx)
+
+    code = lcsc_code.upper()
+    if not code.startswith("C"):
+        code = f"C{code}"
+
+    # Ensure part is cached
+    db = get_db()
+    try:
+        part = db.get_part(code)
+        if not part:
+            click.echo(f"Fetching {code}...", err=True)
+            client = JLCPCBClient()
+            response = client.search(code, page_size=5)
+            parts = normalize_search_response(response)
+            match = next((p for p in parts if p.lcsc_code == code), None)
+            if match:
+                db.upsert_part(match)
+                part = match
+            else:
+                click.echo(f"Part {code} not found on JLCPCB.", err=True)
+                sys.exit(1)
+    finally:
+        db.close()
+
+    try:
+        sel = add_selection(project, lcsc=code, ref=ref, quantity=qty, notes=notes)
+        click.echo(f"Added {ref} → {code} ({part.description})")
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("ref")
+@click.pass_context
+def deselect(ctx, ref):
+    """Remove a component from the BOM by reference designator."""
+    from .project import remove_selection
+
+    project = _require_project(ctx)
+    try:
+        removed = remove_selection(project, ref)
+        click.echo(f"Removed {ref} (was {removed.lcsc or 'TBD'})")
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("old_ref")
+@click.argument("new_ref")
+@click.pass_context
+def relabel(ctx, old_ref, new_ref):
+    """Rename a reference designator."""
+    from .project import relabel_selection
+
+    project = _require_project(ctx)
+    try:
+        sel = relabel_selection(project, old_ref, new_ref)
+        click.echo(f"Relabeled {old_ref} → {new_ref}")
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.option("--check", is_flag=True, help="Refresh BOM parts from API, flag issues")
+@_format_option
+@click.pass_context
+def bom(ctx, check, fmt):
+    """Display the project BOM."""
+    from .project import resolve_bom
+
+    project = _require_project(ctx)
+
+    if check:
+        # Refresh all BOM parts from API
+        client = JLCPCBClient()
+        db = get_db()
+        try:
+            for sel in project.selections:
+                if sel.lcsc:
+                    response = client.search(sel.lcsc, page_size=5)
+                    parts = normalize_search_response(response)
+                    match = next((p for p in parts if p.lcsc_code == sel.lcsc), None)
+                    if match:
+                        db.upsert_part(match)
+        finally:
+            db.close()
+
+    bom_entries = resolve_bom(project)
+
+    if fmt == "json":
+        rows = []
+        for entry in bom_entries:
+            row = {
+                "ref": entry["ref"],
+                "lcsc": entry["lcsc"],
+                "quantity": entry["quantity"],
+                "notes": entry["notes"],
+                "warnings": entry["warnings"],
+            }
+            part = entry["part"]
+            if part:
+                row["description"] = part.description
+                row["package"] = part.package
+                row["stock"] = part.stock
+                row["price"] = part.prices[0].unit_price if part.prices else None
+            rows.append(row)
+        click.echo(json.dumps({"status": "ok", "command": "bom", "data": rows}, indent=2))
+
+    elif fmt == "csv":
+        import csv
+        import io
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["Ref", "LCSC", "Qty", "Description", "Package", "Price", "Stock", "Notes"])
+        for entry in bom_entries:
+            part = entry["part"]
+            writer.writerow([
+                entry["ref"],
+                entry["lcsc"] or "TBD",
+                entry["quantity"],
+                part.description if part else "",
+                part.package if part else "",
+                f"{part.prices[0].unit_price:.4f}" if part and part.prices else "",
+                part.stock if part else "",
+                entry["notes"],
+            ])
+        click.echo(buf.getvalue().rstrip())
+
+    else:
+        # Table format
+        from tabulate import tabulate
+        rows = []
+        for entry in bom_entries:
+            part = entry["part"]
+            price = f"${part.prices[0].unit_price:.4f}" if part and part.prices else "-"
+            stock = f"{part.stock:,}" if part else "-"
+            warn = " ⚠" if entry["warnings"] else ""
+            rows.append([
+                entry["ref"],
+                entry["lcsc"] or "TBD",
+                entry["quantity"],
+                (part.description[:40] if part else entry["notes"][:40] or "-"),
+                part.package if part else "-",
+                price,
+                stock + warn,
+            ])
+        click.echo(tabulate(rows, headers=["Ref", "LCSC", "Qty", "Description", "Pkg", "Price", "Stock"]))
+
+        # Print warnings
+        for entry in bom_entries:
+            if entry["warnings"]:
+                for w in entry["warnings"]:
+                    click.echo(f"  ⚠ {entry['ref']}: {w}", err=True)
+
+
+@cli.command()
+@click.pass_context
+def status(ctx):
+    """Show project overview and warnings."""
+    from .project import resolve_bom
+
+    project = _require_project(ctx)
+    bom_entries = resolve_bom(project)
+
+    click.echo(f"Project: {project.name}")
+    if project.description:
+        click.echo(f"  {project.description}")
+    click.echo(f"Selections: {len(project.selections)}")
+
+    # Cost estimate
+    total_cost = 0.0
+    warnings = []
+    for entry in bom_entries:
+        part = entry["part"]
+        if part and part.prices:
+            total_cost += part.prices[0].unit_price * entry["quantity"]
+        for w in entry["warnings"]:
+            warnings.append(f"{entry['ref']}: {w}")
+
+    click.echo(f"Est. cost:  ${total_cost:.4f} (qty 1 pricing)")
+
+    if warnings:
+        click.echo(f"Warnings:   {len(warnings)}")
+        for w in warnings:
+            click.echo(f"  ⚠ {w}")
+    else:
+        click.echo("Warnings:   none")
+
+
+# ── Helpers ──────────────────────────────────────────────────────────
 
 
 def _apply_local_filters(

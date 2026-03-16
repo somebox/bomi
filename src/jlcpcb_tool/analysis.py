@@ -62,7 +62,7 @@ def _analyze_openrouter(
     """Send datasheet PDF URL to OpenRouter vision model."""
     api_key = get_secret("openrouter_api_key")
     if not api_key:
-        return {"error": "OpenRouter API key not configured in secrets.yaml"}
+        return {"error": "openrouter_api_key not configured (set in config.yaml or JLCPCB_OPENROUTER_API_KEY)"}
 
     model = model or DEFAULT_VISION_MODEL
     datasheet_url = _resolve_datasheet_url(part.datasheet_url)
@@ -131,9 +131,9 @@ def _analyze_llmlayer(
     openrouter_key = get_secret("openrouter_api_key")
 
     if not llmlayer_key:
-        return {"error": "LLMLayer API key not configured in secrets.yaml"}
+        return {"error": "llmlayer_api_key not configured (set in config.yaml or JLCPCB_LLMLAYER_API_KEY)"}
     if not openrouter_key:
-        return {"error": "OpenRouter API key not configured in secrets.yaml"}
+        return {"error": "openrouter_api_key not configured (set in config.yaml or JLCPCB_OPENROUTER_API_KEY)"}
 
     # Step 1: Extract text from PDF via LLMLayer
     extract_resp = requests.post(

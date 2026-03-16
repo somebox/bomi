@@ -1,40 +1,93 @@
-"""Configuration loading from secrets.yaml and path management."""
+"""Configuration loading and path management.
+
+Data layout:
+  Global:  ~/Library/Application Support/jlcpcb/ (macOS)
+           ~/.local/share/jlcpcb/ (Linux)
+  Project: .jlcpcb/project.yaml (in project dir)
+"""
 
 import os
+import sys
 from pathlib import Path
 
 import yaml
 
 
-def _find_project_root() -> Path:
-    """Walk up from cwd to find directory containing pyproject.toml."""
-    path = Path.cwd()
-    for parent in [path, *path.parents]:
-        if (parent / "pyproject.toml").exists():
-            return parent
-    return path
+def _data_dir() -> Path:
+    """Return OS-appropriate global data directory for jlcpcb."""
+    if sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    return base / "jlcpcb"
 
 
-PROJECT_ROOT = _find_project_root()
-DATA_DIR = PROJECT_ROOT / "data"
-DB_PATH = DATA_DIR / "parts.db"
-SECRETS_PATH = PROJECT_ROOT / "secrets.yaml"
+def get_data_dir() -> Path:
+    """Return global data directory, creating it if needed."""
+    d = _data_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def get_db_path() -> Path:
-    """Return path to SQLite database, creating data dir if needed."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    return DB_PATH
+    """Return path to the global SQLite parts cache."""
+    return get_data_dir() / "parts.db"
 
 
-def load_secrets() -> dict:
-    """Load API keys from secrets.yaml."""
-    if not SECRETS_PATH.exists():
+def _global_config_path() -> Path:
+    return _data_dir() / "config.yaml"
+
+
+def load_global_config() -> dict:
+    """Load global config.yaml from the data directory."""
+    path = _global_config_path()
+    if not path.exists():
         return {}
-    with open(SECRETS_PATH) as f:
+    with open(path) as f:
         return yaml.safe_load(f) or {}
 
 
+def get_config(key: str, default=None):
+    """Get a config value. Checks env vars first, then global config.yaml."""
+    env_key = f"JLCPCB_{key.upper()}"
+    env_val = os.environ.get(env_key)
+    if env_val is not None:
+        return env_val
+    return load_global_config().get(key, default)
+
+
 def get_secret(key: str) -> str | None:
-    """Get a specific secret by key."""
-    return load_secrets().get(key)
+    """Get an API key. Checks env vars first, then global config.yaml."""
+    return get_config(key)
+
+
+def find_project_dir(override: str | None = None) -> Path | None:
+    """Find project directory containing .jlcpcb/project.yaml.
+
+    Resolution order:
+      1. Explicit override (--project CLI option)
+      2. JLCPCB_PROJECT env var
+      3. Walk up from cwd looking for .jlcpcb/project.yaml
+    """
+    # 1. Explicit override
+    if override:
+        p = Path(override)
+        if (p / ".jlcpcb" / "project.yaml").exists():
+            return p
+        return None
+
+    # 2. Env var
+    env = os.environ.get("JLCPCB_PROJECT")
+    if env:
+        p = Path(env)
+        if (p / ".jlcpcb" / "project.yaml").exists():
+            return p
+        return None
+
+    # 3. Walk up from cwd
+    path = Path.cwd()
+    for parent in [path, *path.parents]:
+        if (parent / ".jlcpcb" / "project.yaml").exists():
+            return parent
+
+    return None
