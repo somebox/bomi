@@ -172,7 +172,7 @@ pre code {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   background: var(--border);
   border: 1px solid var(--border);
@@ -186,6 +186,9 @@ pre code {
 
 .card h3 { color: var(--text); }
 .card p { font-size: 0.85rem; }
+
+@media (max-width: 700px) { .card-grid { grid-template-columns: 1fr; } }
+@media (min-width: 701px) and (max-width: 960px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
 
 /* ── Steps ────────────────────────────────────────────────────── */
 
@@ -508,14 +511,40 @@ tr:last-child td { border-bottom: none; }
   display: flex;
   gap: 0.6rem;
   align-items: flex-start;
+  cursor: pointer;
+  flex-wrap: wrap;
+  user-select: none;
 }
 
+.prompt-item:hover { background: var(--bg-card); }
+
 .prompt-item::before {
-  content: '›';
+  content: '▸';
   color: var(--blue);
   flex-shrink: 0;
   line-height: 1.45;
+  display: inline-block;
+  transition: transform 0.15s;
 }
+
+.prompt-item.open::before { transform: rotate(90deg); }
+
+.prompt-cmd {
+  display: none;
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  font-family: var(--mono);
+  font-size: 0.71rem;
+  background: #1e2228;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.55;
+}
+
+.prompt-item.open .prompt-cmd { display: block; }
 
 /* ── Feature rows ─────────────────────────────────────────────── */
 

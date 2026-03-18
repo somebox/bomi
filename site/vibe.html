@@ -153,55 +153,63 @@ git init</pre>
 <section>
   <div class="section-label">Working with your agent</div>
   <h2>What to ask</h2>
-  <p style="margin-bottom:2rem;max-width:560px">Once the agent has read the guide, it can handle the full research and BOM workflow.</p>
+  <p style="margin-bottom:2rem;max-width:560px">Once the agent has read the guide, it runs <code>jlcpcb</code> commands on your behalf. Click any example to see the command it maps to.</p>
 
   <div class="two-col">
     <div>
       <div class="task-group">
-        <h3>Find parts</h3>
+        <h3>Search</h3>
         <div class="prompt-list">
-          <div class="prompt-item">Find a 3.3V buck converter in a small package, basic parts only</div>
-          <div class="prompt-item">Search for a Schottky diode, SOD-123, rated for at least 40V and 1A</div>
-          <div class="prompt-item">Find 100nF X7R capacitors in 0402 with at least 10V rating</div>
+          <div class="prompt-item" onclick="this.classList.toggle('open')">
+            Find a 3.3V buck converter, under 3×3mm, basic parts only
+            <code class="prompt-cmd">jlcpcb search "3.3V buck converter" --basic-only --attr "Output Voltage:3.3V"</code>
+          </div>
+          <div class="prompt-item" onclick="this.classList.toggle('open')">
+            Find 100nF X7R capacitors, 0402, 10V minimum
+            <code class="prompt-cmd">jlcpcb search "100nF capacitor 0402" --attr "Voltage Rated:10V" --attr "Temperature Coefficient:X7R"</code>
+          </div>
         </div>
       </div>
       <div class="task-group">
-        <h3>Compare and decide</h3>
+        <h3>Evaluate</h3>
         <div class="prompt-list">
-          <div class="prompt-item">Compare C8287 and C25900, recommend the better one for a 10k pull-up on 3.3V GPIO</div>
-          <div class="prompt-item">Is C347356 suitable for driving a 1W LED from USB-C? Check the datasheet</div>
-        </div>
-      </div>
-      <div class="task-group">
-        <h3>Datasheets</h3>
-        <div class="prompt-list">
-          <div class="prompt-item">Download the C347356 datasheet and summarize external component requirements</div>
-          <div class="prompt-item">Save a markdown summary of the C456012 datasheet to docs/datasheets/</div>
+          <div class="prompt-item" onclick="this.classList.toggle('open')">
+            Compare C8287 and C25900 for a 10k pull-up at 3.3V
+            <code class="prompt-cmd">jlcpcb compare C8287 C25900</code>
+          </div>
+          <div class="prompt-item" onclick="this.classList.toggle('open')">
+            Is C347356 suitable for driving a 1W LED from USB-C?
+            <code class="prompt-cmd">jlcpcb analyze C347356</code>
+          </div>
         </div>
       </div>
     </div>
     <div>
       <div class="task-group">
-        <h3>Build and update the BOM</h3>
+        <h3>Build the BOM</h3>
         <div class="prompt-list">
-          <div class="prompt-item">Add C347356 as U1 with notes "LED driver, PT4115"</div>
-          <div class="prompt-item">Update the BOM: R1 = C8287 × 2, R2 = C8287 × 1, both 10k pull-ups</div>
-          <div class="prompt-item">Export the BOM as markdown and save to docs/bom.md</div>
+          <div class="prompt-item" onclick="this.classList.toggle('open')">
+            Add C347356 as U1 — LED driver, PT4115
+            <code class="prompt-cmd">jlcpcb select C347356 --ref U1 --notes "PT4115 LED driver"</code>
+          </div>
+          <div class="prompt-item" onclick="this.classList.toggle('open')">
+            Swap L1 to C167888 — same footprint, much better stock
+            <code class="prompt-cmd">jlcpcb deselect --ref L1
+jlcpcb select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k stock"</code>
+          </div>
         </div>
       </div>
       <div class="task-group">
-        <h3>Cost and availability</h3>
+        <h3>Review and ship</h3>
         <div class="prompt-list">
-          <div class="prompt-item">Estimate BOM cost at 50 and 500 units</div>
-          <div class="prompt-item">Flag any parts with stock under 1000 or not marked as basic</div>
-          <div class="prompt-item">Find alternatives for any out-of-stock components</div>
-        </div>
-      </div>
-      <div class="task-group">
-        <h3>Revisions and lifecycle</h3>
-        <div class="prompt-list">
-          <div class="prompt-item">Run bom --check to refresh stock and pricing, then commit the result</div>
-          <div class="prompt-item">Swap R1 from C8287 to C25900 and update the notes to explain why</div>
+          <div class="prompt-item" onclick="this.classList.toggle('open')">
+            Check all BOM stock levels, flag anything risky
+            <code class="prompt-cmd">jlcpcb bom --check</code>
+          </div>
+          <div class="prompt-item" onclick="this.classList.toggle('open')">
+            Export the BOM as CSV for the order sheet
+            <code class="prompt-cmd">jlcpcb bom --fmt csv</code>
+          </div>
         </div>
       </div>
     </div>
@@ -214,20 +222,28 @@ git init</pre>
   <h2>Getting the most out of it</h2>
   <div class="card-grid">
     <div class="card">
-      <h3>Be specific about constraints</h3>
-      <p>Mention package size, voltage, current, and whether you want basic parts. More detail means better <code>--attr</code> filtering.</p>
+      <h3>Give context, not just part names</h3>
+      <p>Include your supply voltage, target quantities, package constraints, and whether basic parts are required. The agent uses all of it to set search filters — vague prompts give vague results.</p>
     </div>
     <div class="card">
-      <h3>Use the local cache</h3>
-      <p>After searching, use <code>query</code> for fast offline filtering. Useful when iterating on attribute ranges without re-hitting the catalog.</p>
+      <h3>Always note why a part was chosen</h3>
+      <p>Ask the agent to always include <code>--notes</code> with a brief reason. Footprint constraint, cost ceiling, thermal rating — that context is invaluable when revisiting the design or explaining a swap months later.</p>
     </div>
     <div class="card">
-      <h3>Notes in selections</h3>
-      <p>Ask the agent to include <code>--notes</code> explaining why a part was chosen. Makes future BOM reviews much easier.</p>
+      <h3>Save datasheets as markdown</h3>
+      <p>For any non-trivial IC, run <code>datasheet --summary</code> and save to <code>docs/datasheets/</code>. Point the agent at it for application questions — it's faster than re-fetching and stays in the repo alongside the BOM.</p>
     </div>
     <div class="card">
-      <h3>Commit regularly</h3>
-      <p><code>.jlcpcb/project.yaml</code> is plain text. Commit after each meaningful BOM change to keep a history of every part decision.</p>
+      <h3>Check stock before every order</h3>
+      <p>Prices and availability change daily on JLCPCB. Run <code>bom --check</code> before finalising any production run to catch anything that's gone out of stock or changed in price since you last looked.</p>
+    </div>
+    <div class="card">
+      <h3>Commit the BOM after each session</h3>
+      <p><code>.jlcpcb/project.yaml</code> is plain YAML — commit it after every meaningful change. You get a full history of part decisions: what you tried, what you replaced, and the reasoning behind each choice.</p>
+    </div>
+    <div class="card">
+      <h3>Verify pins and parameters before routing</h3>
+      <p>Use <code>analyze</code> to check pin assignments, logic levels, and application circuit values before committing a footprint. Ask the agent specific questions: enable pin threshold, sense resistor formula, max switching frequency.</p>
     </div>
   </div>
 </section>
