@@ -1,6 +1,6 @@
 # Usage Examples
 
-This file focuses on commands that are implemented in the current CLI.
+This file focuses on commands that are implemented in the current CLI. For a structured agent reference, see `docs/jlcpcb-tool-guide.md` or [somebox.github.io/jlcpcb-tool/examples.html](https://somebox.github.io/jlcpcb-tool/examples.html).
 
 ## Basic Search
 
@@ -114,9 +114,12 @@ jlcpcb fetch C8287 --force
 
 ```bash
 # Analyze one cached datasheet with OpenRouter
+# Default prompt covers: key specs, pin descriptions, application circuit values, design notes
 jlcpcb fetch C8287
-jlcpcb analyze C8287 \
-  --prompt "Summarize power rating and operating temperature range"
+jlcpcb analyze C8287
+
+# Pass --prompt only when you need something specific
+jlcpcb analyze C8287 --prompt "What is the enable pin threshold voltage?"
 
 # Use a specific model
 jlcpcb analyze C8287 --model "anthropic/claude-sonnet-4.6"
@@ -124,7 +127,7 @@ jlcpcb analyze C8287 --model "anthropic/claude-sonnet-4.6"
 # Download PDF only
 jlcpcb datasheet C8287 --pdf -o docs/datasheets/
 
-# Download PDF and generate a markdown summary
+# Download PDF and generate a markdown summary (useful as agent context)
 jlcpcb datasheet C8287 --pdf --summary -o docs/datasheets/
 ```
 
@@ -146,10 +149,10 @@ jlcpcb search "100nF 0402 X7R"
 jlcpcb fetch C1525
 jlcpcb info C1525
 
-# Add BOM entries
+# Add BOM entries (select fetches automatically if not already cached)
 jlcpcb select C1525 --ref C1 --qty 1 --notes "Bypass cap"
 jlcpcb select C1525 --ref C2 --qty 1 --notes "Bypass cap"
-jlcpcb select C347356 --ref U2 --qty 1 --notes "LED driver"
+jlcpcb select C347356 --ref U2 --qty 1 --notes "LED driver, constant current"
 ```
 
 ### BOM review

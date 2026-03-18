@@ -3,6 +3,9 @@ name = "jlcpcb-tool"
 version = "1.0.0"
 description = "CLI tool for researching JLCPCB/LCSC electronic components"
 license = { text = "MIT" }
+authors = [
+    { name = "Jeremy Seitz", email = "7750+somebox@users.noreply.github.com" },
+]
 requires-python = ">=3.11"
 dependencies = [
     "click>=8.0",

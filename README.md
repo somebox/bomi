@@ -1,6 +1,10 @@
 # jlcpcb-tool
 
-`jlcpcb-tool` is a Python CLI for researching JLCPCB/LCSC parts and keeping a per-project BOM in version control. It solves two common problems: repeated part lookups and ad-hoc BOM notes. It does that by caching part data in a shared local SQLite database and storing project selections in `.jlcpcb/project.yaml`.
+[![CI](https://github.com/somebox/jlcpcb-tool/actions/workflows/ci.yml/badge.svg)](https://github.com/somebox/jlcpcb-tool/actions/workflows/ci.yml)
+
+`jlcpcb-tool` is a Python CLI for researching JLCPCB/LCSC parts and keeping a per-project BOM in version control. It caches part data in a shared local SQLite database and stores project selections in `.jlcpcb/project.yaml`. It is designed to be driven by an AI agent (Claude Code, Cursor, GitHub Copilot, etc.) as part of a circuit design workflow.
+
+**[somebox.github.io/jlcpcb-tool](https://somebox.github.io/jlcpcb-tool)** — demos, examples, and getting-started guide
 
 ## Requirements
 
@@ -12,11 +16,14 @@
 ## Install
 
 ```bash
-# Work on the repo
-uv sync
+git clone https://github.com/somebox/jlcpcb-tool.git
+cd jlcpcb-tool
 
 # Install the CLI globally as `jlcpcb`
 uv tool install -e .
+
+# Or, to work on the repo
+uv sync
 ```
 
 > **Note for asdf users:** `uv tool install` installs into uv's own tool environment, which may not be on `PATH` under all asdf-managed Python shims. If you get "No preset version installed for command jlcpcb", run directly with:
@@ -32,7 +39,7 @@ Global config lives here:
 - macOS: `~/Library/Application Support/jlcpcb/config.yaml`
 - Linux: `~/.local/share/jlcpcb/config.yaml`
 
-Minimal config:
+Minimal config (see `secrets.yaml.example` in the repo):
 
 ```yaml
 openrouter_api_key: sk-or-v1-...
@@ -62,8 +69,8 @@ jlcpcb query --package 0402 --basic-only --attr "Resistance >= 10k"
 jlcpcb info C8287
 jlcpcb compare C8287 C25900
 
-# 5. Analyze a cached part's datasheet with OpenRouter
-jlcpcb analyze C8287 --prompt "Summarize key ratings and limits"
+# 5. Analyze a cached part's datasheet with OpenRouter (default prompt covers key specs)
+jlcpcb analyze C8287
 ```
 
 `info`, `compare`, `analyze`, and `datasheet` all work from the local cache. If a part is missing, run `jlcpcb fetch <code>` first.
@@ -76,7 +83,7 @@ Projects store their BOM in `.jlcpcb/project.yaml`, which is meant to be committ
 cd my-pcb-project
 jlcpcb init --name "my-board" --description "Motor driver board"
 
-# Add parts to the BOM
+# Add parts to the BOM (fetches from catalog if not already cached)
 jlcpcb select C8287 --ref R1 --qty 2 --notes "10k pull-up"
 jlcpcb select C1525 --ref C1 --qty 1 --notes "100nF bypass"
 jlcpcb select C1525 --ref C2 --qty 1 --notes "100nF bypass"
@@ -216,11 +223,10 @@ src/jlcpcb_tool/
 
 ## Documentation
 
-- `docs/jlcpcb-tool-guide.md`: short agent-oriented usage guide
+- `docs/jlcpcb-tool-guide.md`: short agent-oriented usage guide (also at [somebox.github.io/jlcpcb-tool/guide.html](https://somebox.github.io/jlcpcb-tool/guide.html))
 - `docs/examples.md`: command examples
 - `docs/jlcpcb-api-internals.md`: current API notes and implementation boundaries
 - `docs/sqlite-database-guide.md`: local cache schema and query examples
-- `docs/review-issues.md`: review findings and next-step issue list
 
 ## Development
 

@@ -52,8 +52,12 @@
       </p>
     </div>
     <div class="hero-terminal">
-      <div class="player-label">search → inspect → compare</div>
-      <div class="ap-wrapper" id="player-search"></div>
+      <div class="player-label" id="slideshow-label"></div>
+      <div class="slideshow-wrap">
+        <div class="ap-wrapper slideshow-slide active" id="slide-0"></div>
+        <div class="ap-wrapper slideshow-slide" id="slide-1"></div>
+        <div class="ap-wrapper slideshow-slide" id="slide-2"></div>
+      </div>
     </div>
   </section>
 
@@ -198,24 +202,47 @@ openrouter_api_key: sk-or-v1-...</pre>
     <a href="examples.html">Examples</a>
     <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
   </div>
-  <div>jlcpcb-tool v__BUILD_VERSION__ &nbsp;·&nbsp; &copy; Jeremy Seitz &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
+  <div>jlcpcb-tool v__BUILD_VERSION__ &nbsp;·&nbsp; <a href="https://swiss.social/@somebox" target="_blank">Jeremy Seitz</a> &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.min.js"></script>
 <script>
-  AsciinemaPlayer.create('recordings/scene-search-core-parts.cast', document.getElementById('player-search'), {
-    cols: 75, rows: 20,
-    autoPlay: true, loop: true, speed: 1.4,
-    theme: 'monokai', fit: false,
-    terminalFontSize: '11px',
-    poster: 'npt:0:3'
-  });
+  const SLIDES = [
+    { src: 'recordings/scene-search-core-parts.cast',      dur: 10700, label: 'search the catalog' },
+    { src: 'recordings/scene-inspect-driver.cast',         dur:  9600, label: 'inspect a part'      },
+    { src: 'recordings/scene-compare-switch-options.cast', dur:  9700, label: 'compare options'     },
+  ];
+  const SPEED = 1.4;
+  const PAUSE = 1800; // ms gap between slides
+
+  const labelEl = document.getElementById('slideshow-label');
+  const slideEls = document.querySelectorAll('.slideshow-slide');
+  const opts = { cols: 75, rows: 20, autoPlay: false, loop: false, speed: SPEED,
+                 theme: 'monokai', fit: false, terminalFontSize: '11px', poster: 'npt:0:2' };
+
+  const players = SLIDES.map((s, i) => AsciinemaPlayer.create(s.src, slideEls[i], opts));
+
+  let current = 0;
+  let timer = null;
+
+  function showSlide(idx) {
+    players[current].pause();
+    slideEls[current].classList.remove('active');
+    current = idx;
+    slideEls[current].classList.add('active');
+    labelEl.textContent = SLIDES[current].label;
+    players[current].seek(0);
+    players[current].play();
+    clearTimeout(timer);
+    timer = setTimeout(() => showSlide((current + 1) % SLIDES.length),
+                       Math.round(SLIDES[current].dur / SPEED) + PAUSE);
+  }
+
+  showSlide(0);
+
   AsciinemaPlayer.create('recordings/scene-review-bom-status.cast', document.getElementById('player-bom'), {
-    cols: 100, rows: 18,
-    autoPlay: true, loop: true, speed: 1.2,
-    theme: 'monokai', fit: false,
-    terminalFontSize: '11px',
-    poster: 'npt:0:2'
+    cols: 100, rows: 18, autoPlay: true, loop: true, speed: 1.2,
+    theme: 'monokai', fit: false, terminalFontSize: '11px', poster: 'npt:0:2'
   });
 </script>
 </body>
