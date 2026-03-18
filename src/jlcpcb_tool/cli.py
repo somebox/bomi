@@ -253,8 +253,14 @@ def compare(lcsc_codes, fmt):
 
 @cli.command()
 @click.argument("lcsc_code")
-@click.option("--prompt", default="Summarize the key specifications from this datasheet.",
-              help="Analysis prompt")
+@click.option("--prompt", default=(
+                  "Provide a concise technical summary of this component. Include:\n"
+                  "- Key specifications (voltage, current, frequency, temperature range)\n"
+                  "- Pin descriptions with pin numbers\n"
+                  "- Typical application circuit component values\n"
+                  "- Important design notes and limitations\n"
+                  "Format as markdown. Be precise with values and units."
+              ), help="Analysis prompt")
 @click.option("--model", default=None, help="Override model name")
 @click.option("--pdf-engine", default="mistral-ocr",
               type=click.Choice(["mistral-ocr", "pdf-text", "native"]),
@@ -674,8 +680,8 @@ def bom(ctx, check, fmt):
             stock = f"{part.stock:,}" if part else "-"
             warn = " ⚠" if entry["warnings"] else ""
             notes = entry["notes"]
-            if len(notes) > 50:
-                notes = notes[:49] + "…"
+            if len(notes) > 40:
+                notes = notes[:39] + "…"
             rows.append([
                 entry["ref"],
                 entry["lcsc"] or "TBD",

@@ -24,12 +24,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Copy demo presentation and recordings into site
+      - name: Inject version and build date into site
         run: |
-          # Copy full demo presentation
-          cp -r demo/presentation site/demo
-          # Overwrite recordings with the master copy (demo/presentation/ may have its own)
-          cp demo/presentation/recordings/*.cast site/recordings/
+          VERSION=$(grep '^version' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          BUILD_DATE=$(date +"%Y-%m-%d")
+          echo "version: $VERSION  date: $BUILD_DATE"
+          sed -i "s/__BUILD_VERSION__/$VERSION/g" site/*.html
+          sed -i "s/__BUILD_DATE__/$BUILD_DATE/g" site/*.html
 
       - uses: actions/configure-pages@v5
 

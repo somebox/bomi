@@ -15,7 +15,6 @@
     <li><a href="vibe.html">Getting Started</a></li>
     <li><a href="guide.html" class="active">Agent Guide</a></li>
     <li><a href="examples.html">Examples</a></li>
-    <li><a href="demo/index.html">Demo</a></li>
   </ul>
   <a class="nav-github" href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
 </nav>
@@ -113,7 +112,8 @@ jlcpcb status</pre>
 
       <h3>Work with datasheets</h3>
       <pre>jlcpcb fetch C9865
-jlcpcb analyze C9865 --prompt "Summarize ratings and pin functions"
+jlcpcb analyze C9865
+jlcpcb analyze C9865 --prompt "What is the enable pin threshold voltage?"
 jlcpcb datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
       <p>
         The <code>analyze</code> command sends the datasheet PDF to OpenRouter and returns structured markdown.
@@ -172,10 +172,9 @@ jlcpcb datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
     <a href="vibe.html">Getting Started</a>
     <a href="guide.html">Agent Guide</a>
     <a href="examples.html">Examples</a>
-    <a href="demo/index.html">Demo</a>
-    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub</a>
+    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
   </div>
-  <div>jlcpcb-tool — open source, MIT license</div>
+  <div>jlcpcb-tool v__BUILD_VERSION__ &nbsp;·&nbsp; &copy; Jeremy Seitz &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
 </footer>
 
 </body>

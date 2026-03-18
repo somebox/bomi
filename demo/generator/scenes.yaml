@@ -115,7 +115,7 @@ scenes:
 
   - id: scene-review-bom-status
     title: "Review BOM and Status"
-    cols: 75
+    cols: 100
     rows: 28
     working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03

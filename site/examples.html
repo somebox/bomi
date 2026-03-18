@@ -6,6 +6,7 @@
   <title>Examples — jlcpcb-tool</title>
   <meta name="description" content="Command examples for jlcpcb-tool: search, filter, compare, BOM, datasheets.">
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.css">
 </head>
 <body>
 
@@ -15,7 +16,6 @@
     <li><a href="vibe.html">Getting Started</a></li>
     <li><a href="guide.html">Agent Guide</a></li>
     <li><a href="examples.html" class="active">Examples</a></li>
-    <li><a href="demo/index.html">Demo</a></li>
   </ul>
   <a class="nav-github" href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
 </nav>
@@ -31,7 +31,7 @@
         <li><a href="#formats">Output formats</a></li>
         <li><a href="#cache">Local cache</a></li>
         <li><a href="#inspect">Inspect &amp; compare</a></li>
-        <li><a href="#datasheets">Datasheets</a></li>
+        <li><a href="#datasheets">Datasheets &amp; analysis</a></li>
         <li><a href="#project">Project workflow</a></li>
         <li><a href="#db">Database</a></li>
       </ul>
@@ -58,6 +58,10 @@ jlcpcb search "STM32" --pages 3 --limit 50</pre>
         Use <code>--basic-only</code> to restrict to JLCPCB basic parts (lower assembly cost).
         Use <code>--preferred-only</code> for JLCPCB preferred parts.
       </p>
+      <div class="player-block">
+        <div class="player-label">search for USB-C connector and LED driver</div>
+        <div class="ap-wrapper" id="player-search"></div>
+      </div>
 
       <h2 id="filter">Attribute filtering</h2>
       <pre>jlcpcb search "0402 resistor" --attr "Resistance >= 10k"
@@ -134,6 +138,14 @@ jlcpcb fetch C8287 --force</pre>
         <code>fetch</code> caches one or more parts. <code>--force</code> refreshes even if the part was recently cached.
         <code>info</code> shows full specs, attributes, and links. <code>compare</code> shows a side-by-side table.
       </p>
+      <div class="player-block">
+        <div class="player-label">fetch and inspect a part</div>
+        <div class="ap-wrapper" id="player-inspect"></div>
+      </div>
+      <div class="player-block">
+        <div class="player-label">compare two switch options</div>
+        <div class="ap-wrapper" id="player-compare"></div>
+      </div>
 
       <h2 id="datasheets">Datasheets</h2>
       <pre>jlcpcb fetch C347356
@@ -146,10 +158,139 @@ jlcpcb datasheet C347356 --pdf -o docs/datasheets/
 
 jlcpcb datasheet C347356 --pdf --summary -o docs/datasheets/</pre>
       <p>
-        <code>analyze</code> sends the datasheet PDF to OpenRouter and returns markdown.
+        <code>analyze</code> sends the datasheet PDF to OpenRouter and returns structured markdown.
         <code>datasheet --summary</code> writes a <code>.md</code> file alongside the PDF.
         Both require an OpenRouter API key.
       </p>
+
+      <p>
+        The default prompt already asks for specs, pins, application values, and design notes.
+        Running without <code>--prompt</code> gives useful output for most parts:
+      </p>
+      <pre>jlcpcb analyze C347356</pre>
+      <p>Add <code>--prompt</code> only when you need something specific:</p>
+      <pre>jlcpcb analyze C347356 --prompt "What is the sense resistor formula for 350mA output?"</pre>
+
+      <div class="analysis-card">
+        <div class="analysis-card-header">
+          <span class="analysis-part-name">
+            <a href="https://www.lcsc.com/product-detail/C347356.html" target="_blank">UMW PT4115</a>
+            &nbsp;<span class="tag">C347356</span>&nbsp; LED Constant Current Driver
+          </span>
+          <span class="analysis-meta">Processed from PDF datasheet using anthropic/claude-sonnet-4.6</span>
+        </div>
+        <div class="analysis-body collapsed" id="analysis-body">
+          <div class="analysis-rendered" id="analysis-output"></div>
+          <div class="analysis-fade"></div>
+        </div>
+        <button class="analysis-expand" id="analysis-toggle" onclick="toggleAnalysis()">
+          <span class="arrow">↓</span> show full analysis
+        </button>
+      </div>
+
+      <script id="analysis-source" type="text/plain">
+# UMW PT4115 — LED Constant Current Driver Summary
+
+## Key Electrical Ratings
+
+| Parameter | Value |
+|---|---|
+| Input Voltage (operating) | 6 V – 30 V |
+| Input Voltage (absolute max) | 35 V |
+| Max Continuous Output Current | 1.2 A |
+| Max Switch Current (I_SW) | 1.5 A (abs. max) |
+| Output Current Accuracy | ±5% |
+| Switch On-Resistance | 0.4 Ω @ 24 V / 0.6 Ω @ 12 V |
+| Max Power Dissipation | 1.5 W (derated with temperature) |
+| Thermal Resistance (θ_JA) | 45 °C/W (SOT89-5) |
+| Under-Voltage Lockout (UVLO) | ~5.1 V (with 500 mV hysteresis) |
+| Operating Temperature | −25 °C to +85 °C (recommended) |
+| Junction Temperature Range | −40 °C to +150 °C |
+
+---
+
+## Switching Frequency
+
+- **Maximum switching frequency:** 1 MHz
+- The device is a **self-oscillating** (hysteretic) buck converter — switching frequency is **not fixed**; it varies with input voltage, LED voltage, inductance value, and load conditions.
+- There is no external frequency-setting component; frequency is determined by circuit parasitics and component selection.
+
+---
+
+## Sense Resistor Formula (Setting LED Current)
+
+The current-sense resistor **R_S** is connected between **VIN** and **CSN** pins (high-side sensing).
+
+**Basic formula** (DIM floating or V_DIM ≥ 2.5 V):
+
+```
+I_OUT = 0.1 / R_S      (R_S ≥ 0.082 Ω)
+```
+
+> The internal comparator switches between 85 mV and 115 mV thresholds, giving an average of **100 mV** across R_S.
+
+**Example:** To set I_OUT = 350 mA → R_S = 0.1 / 0.35 = **0.286 Ω**
+
+**With analog dimming** (0.5 V ≤ V_DIM ≤ 2.5 V):
+
+```
+I_OUT = (0.1 × V_DIM) / (2.5 × R_S)
+```
+
+**With PWM dimming:**
+
+```
+I_OUT = (0.1 × D) / R_S      (0 ≤ D ≤ 100%)
+```
+
+> Use **1% tolerance** resistors for R_S to maintain ±5% output current accuracy.
+
+---
+
+## Input Voltage Range
+
+| Condition | Range |
+|---|---|
+| Recommended operating | **6 V – 30 V DC** |
+| Absolute maximum | 35 V |
+| UVLO shutdown threshold | ~5.1 V rising (~5.6 V) |
+
+> Suitable for AC12–18 V rectified supplies with an adequate bulk capacitor (≥100 µF recommended).
+
+---
+
+## DIM Pin — Dimming and Control
+
+| V_DIM Level | Behavior |
+|---|---|
+| < 0.3 V | **Shutdown** — ~60 µA quiescent current |
+| 0.5 V – 2.5 V | **Analog dimming** — current proportional to V_DIM |
+| > 2.5 V (≤ 5 V) | **Full current** — I_OUT = 0.1 / R_S |
+| Floating | Full current (internal 200 kΩ pull-up) |
+| PWM signal | **PWM dimming** — duty cycle controls average current |
+
+---
+
+## Application Notes and Limitations
+
+**Critical limits:**
+- Minimum R_S = 0.082 Ω — sets the 1.2 A maximum current limit
+- DIM pin maximum voltage = 6 V absolute
+- Over-temperature protection shuts down at 160 °C, auto-restarts at 140 °C
+
+**Inductor selection:**
+
+| LED Current | Recommended Inductance |
+|---|---|
+| > 1 A | 27 – 33 µH |
+| 0.8 – 1 A | 33 – 47 µH |
+| 0.4 – 0.8 A | 47 – 68 µH |
+| ≤ 0.4 A | 68 – 100 µH |
+
+Use inductors with saturation current rated at 1.3–1.5× I_OUT.
+
+**PCB layout:** solder the exposed pad to PCB ground for heat dissipation. Keep high-current traces (VIN → R_S → LED → L → SW) short and wide. Add ≥4.7 µF X7R bypass cap close to VIN.
+      </script>
 
       <h2 id="project">Project workflow</h2>
 
@@ -173,10 +314,21 @@ jlcpcb bom --check
 jlcpcb bom --format csv
 jlcpcb bom --format markdown
 jlcpcb status</pre>
+      <div class="player-block">
+        <div class="player-label">bom + status — cost rollup and stock summary</div>
+        <div class="ap-wrapper" id="player-bom"></div>
+      </div>
 
-      <h3>Edit references</h3>
+      <h3>Refine and export</h3>
       <pre>jlcpcb relabel R1 R3
-jlcpcb deselect C2</pre>
+jlcpcb deselect C2
+jlcpcb bom --check
+jlcpcb bom --format csv
+jlcpcb bom --format json</pre>
+      <div class="player-block">
+        <div class="player-label">relabel, validate, and export BOM</div>
+        <div class="ap-wrapper" id="player-refine"></div>
+      </div>
 
       <h3>Work from outside the project directory</h3>
       <pre>jlcpcb --project ~/Projects/my-board bom
@@ -208,11 +360,37 @@ jlcpcb db clear</pre>
     <a href="vibe.html">Getting Started</a>
     <a href="guide.html">Agent Guide</a>
     <a href="examples.html">Examples</a>
-    <a href="demo/index.html">Demo</a>
-    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub</a>
+    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
   </div>
-  <div>jlcpcb-tool — open source, MIT license</div>
+  <div>jlcpcb-tool v__BUILD_VERSION__ &nbsp;·&nbsp; &copy; Jeremy Seitz &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.min.js"></script>
+<script>
+  const src = document.getElementById('analysis-source');
+  const out = document.getElementById('analysis-output');
+  if (src && out) out.innerHTML = marked.parse(src.textContent.trim());
+
+  function toggleAnalysis() {
+    const body = document.getElementById('analysis-body');
+    const btn  = document.getElementById('analysis-toggle');
+    const open = !body.classList.contains('collapsed');
+    body.classList.toggle('collapsed', open);
+    btn.classList.toggle('open', !open);
+    btn.innerHTML = open
+      ? '<span class="arrow">↓</span> show full analysis'
+      : '<span class="arrow">↓</span> collapse';
+  }
+</script>
+<script>
+  const opts75 = { cols: 75, autoPlay: false, loop: false, theme: 'monokai', fit: false, terminalFontSize: '11px' };
+  AsciinemaPlayer.create('recordings/scene-search-core-parts.cast',    document.getElementById('player-search'),  opts75);
+  AsciinemaPlayer.create('recordings/scene-inspect-driver.cast',        document.getElementById('player-inspect'), opts75);
+  AsciinemaPlayer.create('recordings/scene-compare-switch-options.cast',document.getElementById('player-compare'), opts75);
+  AsciinemaPlayer.create('recordings/scene-review-bom-status.cast',     document.getElementById('player-bom'),
+    { cols: 100, autoPlay: false, loop: false, theme: 'monokai', fit: false, terminalFontSize: '11px' });
+  AsciinemaPlayer.create('recordings/scene-refine-validate.cast',       document.getElementById('player-refine'), opts75);
+</script>
 </body>
 </html>
