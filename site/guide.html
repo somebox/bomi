@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Guide — jlcpcb-tool</title>
+  <meta name="description" content="A short structured reference for AI agents using jlcpcb-tool.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">jlcpcb<span>-tool</span></a>
+  <ul class="nav-links">
+    <li><a href="vibe.html">Getting Started</a></li>
+    <li><a href="guide.html" class="active">Agent Guide</a></li>
+    <li><a href="examples.html">Examples</a></li>
+    <li><a href="demo/index.html">Demo</a></li>
+  </ul>
+  <a class="nav-github" href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+</nav>
+
+<main>
+  <div class="doc-layout">
+
+    <nav class="doc-nav">
+      <div class="doc-nav-label">On this page</div>
+      <ul>
+        <li><a href="#quick-rules">Quick rules</a></li>
+        <li><a href="#quick-ref">Command reference</a></li>
+        <li><a href="#flows">Common flows</a></li>
+        <li><a href="#output">Output format</a></li>
+        <li><a href="#context">Project context</a></li>
+        <li><a href="#defaults">Good defaults</a></li>
+      </ul>
+    </nav>
+
+    <div class="doc-content">
+      <div class="section-label">Agent Guide</div>
+      <h1 style="font-size:1.6rem;margin-bottom:0.5rem">jlcpcb-tool — Agent Reference</h1>
+      <p style="color:var(--text-dim);font-size:0.875rem;margin-bottom:2rem">
+        This guide is designed to be read at the start of a Claude Code, Copilot, or Cursor session.
+        It gives the agent everything it needs to use <code>jlcpcb</code> correctly.
+      </p>
+
+      <div class="callout">
+        <strong>For AI agents:</strong> Read this page in full before using <code>jlcpcb</code> commands.
+        Pay attention to the caching rules under Quick Rules and the output shape differences under Output Format.
+      </div>
+
+      <h2 id="quick-rules">Quick rules</h2>
+      <ul>
+        <li><code>search</code> is live and also updates the local cache.</li>
+        <li><code>query</code> is local-cache only — fast and offline.</li>
+        <li><code>info</code>, <code>compare</code>, <code>analyze</code>, and <code>datasheet</code> need the part in the local cache first — run <code>fetch</code> if needed.</li>
+        <li><code>select</code>, <code>bom</code>, <code>status</code>, <code>deselect</code>, and <code>relabel</code> need project context (a <code>.jlcpcb/project.yaml</code> in the tree).</li>
+        <li><code>status</code> is text-only. <code>bom --format json</code> uses a different JSON shape than other commands — see Output Format.</li>
+      </ul>
+
+      <h2 id="quick-ref">Command reference</h2>
+      <table>
+        <thead>
+          <tr><th>Command</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>jlcpcb search "keyword"</td><td>Search the live JLCPCB catalog</td></tr>
+          <tr><td>jlcpcb fetch CXXXXX</td><td>Cache a specific part by LCSC code</td></tr>
+          <tr><td>jlcpcb query "keyword"</td><td>Search the local cache only</td></tr>
+          <tr><td>jlcpcb info CXXXXX</td><td>Show full details for one cached part</td></tr>
+          <tr><td>jlcpcb compare CXXXXX CYYYYY</td><td>Compare cached parts side-by-side</td></tr>
+          <tr><td>jlcpcb analyze CXXXXX</td><td>Analyze a cached datasheet with OpenRouter</td></tr>
+          <tr><td>jlcpcb datasheet CXXXXX --pdf --summary -o dir/</td><td>Download PDF and write a markdown summary</td></tr>
+          <tr><td>jlcpcb init</td><td>Create .jlcpcb/project.yaml in current directory</td></tr>
+          <tr><td>jlcpcb select CXXXXX --ref U1</td><td>Add a BOM entry (fetches if not cached)</td></tr>
+          <tr><td>jlcpcb deselect U1</td><td>Remove a BOM entry by reference</td></tr>
+          <tr><td>jlcpcb relabel R1 R3</td><td>Rename a BOM reference</td></tr>
+          <tr><td>jlcpcb bom</td><td>Show the full BOM with pricing and stock</td></tr>
+          <tr><td>jlcpcb bom --check</td><td>Refresh BOM stock and pricing from live catalog</td></tr>
+          <tr><td>jlcpcb bom --format json</td><td>Export BOM as JSON</td></tr>
+          <tr><td>jlcpcb status</td><td>Show project summary with cost estimate and warnings</td></tr>
+          <tr><td>jlcpcb db stats</td><td>Show local cache statistics</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="flows">Common flows</h2>
+
+      <h3>Search and inspect</h3>
+      <pre>jlcpcb search "buck converter 3.3V"
+jlcpcb fetch C9865
+jlcpcb info C9865
+jlcpcb compare C9865 C28023</pre>
+
+      <h3>Filter by attributes</h3>
+      <pre>jlcpcb search "0402 resistor" --attr "Resistance >= 10k"
+jlcpcb search "MOSFET SOT-23" --attr "Drain Source Voltage (Vdss) >= 30"
+jlcpcb query --basic-only --attr "Capacitance <= 100n"</pre>
+      <p>
+        Attribute operators: <code>&gt;=</code> <code>&lt;=</code> <code>&gt;</code> <code>&lt;</code> <code>=</code> <code>!=</code>.
+        Values support SI prefixes: <code>10k</code>, <code>100n</code>, <code>4.7u</code>.
+        Multiple <code>--attr</code> flags are ANDed together.
+      </p>
+
+      <h3>Work in a project</h3>
+      <pre>cd my-project
+jlcpcb init --name "My Board" --description "Description here"
+
+jlcpcb select C9865 --ref U3 --qty 1 --notes "3.3V buck"
+jlcpcb select C8678 --ref D3 --qty 1 --notes "catch diode"
+
+jlcpcb bom
+jlcpcb bom --check
+jlcpcb status</pre>
+
+      <h3>Work with datasheets</h3>
+      <pre>jlcpcb fetch C9865
+jlcpcb analyze C9865 --prompt "Summarize ratings and pin functions"
+jlcpcb datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
+      <p>
+        The <code>analyze</code> command sends the datasheet PDF to OpenRouter and returns structured markdown.
+        Requires an OpenRouter API key in config. The <code>datasheet</code> command writes files to disk:
+        a PDF and (with <code>--summary</code>) a <code>.md</code> alongside it.
+      </p>
+
+      <h2 id="output">Output format</h2>
+      <p>Most commands support <code>--format table|json|csv|markdown</code>. JSON uses this envelope:</p>
+      <pre>{
+  "status": "ok",
+  "command": "search",
+  "count": 1,
+  "results": [ ... ]
+}</pre>
+      <p><code>bom --format json</code> is different — it uses <code>data</code> instead of <code>results</code>:</p>
+      <pre>{
+  "status": "ok",
+  "command": "bom",
+  "data": [ ... ]
+}</pre>
+      <p><code>status</code> is text-only and does not support <code>--format</code>.</p>
+
+      <h2 id="context">Project context</h2>
+      <p>Project context is resolved in this order:</p>
+      <ol>
+        <li><code>--project &lt;path&gt;</code></li>
+        <li><code>JLCPCB_PROJECT</code> environment variable</li>
+        <li>Walk up from the current directory until <code>.jlcpcb/project.yaml</code> is found</li>
+      </ol>
+      <p>
+        <code>jlcpcb init</code> also appends datasheet PDF ignore rules to <code>.gitignore</code>.
+      </p>
+      <p>
+        If running from outside the project tree (e.g. via <code>uv run --directory</code>),
+        set <code>JLCPCB_PROJECT</code> to avoid needing <code>--project</code> on every command.
+      </p>
+
+      <h2 id="defaults">Good defaults</h2>
+      <ul>
+        <li>Run <code>fetch</code> before <code>info</code>, <code>compare</code>, <code>analyze</code>, or <code>datasheet</code>.</li>
+        <li>Use <code>query</code> when you want fast, offline, reproducible filtering from the local cache.</li>
+        <li>Use <code>bom --check</code> before ordering to refresh stock and pricing from the live catalog.</li>
+        <li>Use one reference per BOM line when possible (<code>R1</code>, <code>U2</code>, etc.).</li>
+        <li>Add <code>--notes</code> to selections to record why a part was chosen.</li>
+        <li>Commit <code>.jlcpcb/project.yaml</code> with every BOM change so decisions are tracked in git.</li>
+      </ul>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="vibe.html">Getting Started</a>
+    <a href="guide.html">Agent Guide</a>
+    <a href="examples.html">Examples</a>
+    <a href="demo/index.html">Demo</a>
+    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub</a>
+  </div>
+  <div>jlcpcb-tool — open source, MIT license</div>
+</footer>
+
+</body>
+</html>

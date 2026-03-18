@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Examples — jlcpcb-tool</title>
+  <meta name="description" content="Command examples for jlcpcb-tool: search, filter, compare, BOM, datasheets.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">jlcpcb<span>-tool</span></a>
+  <ul class="nav-links">
+    <li><a href="vibe.html">Getting Started</a></li>
+    <li><a href="guide.html">Agent Guide</a></li>
+    <li><a href="examples.html" class="active">Examples</a></li>
+    <li><a href="demo/index.html">Demo</a></li>
+  </ul>
+  <a class="nav-github" href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+</nav>
+
+<main>
+  <div class="doc-layout">
+
+    <nav class="doc-nav">
+      <div class="doc-nav-label">On this page</div>
+      <ul>
+        <li><a href="#search">Basic search</a></li>
+        <li><a href="#filter">Attribute filtering</a></li>
+        <li><a href="#formats">Output formats</a></li>
+        <li><a href="#cache">Local cache</a></li>
+        <li><a href="#inspect">Inspect &amp; compare</a></li>
+        <li><a href="#datasheets">Datasheets</a></li>
+        <li><a href="#project">Project workflow</a></li>
+        <li><a href="#db">Database</a></li>
+      </ul>
+    </nav>
+
+    <div class="doc-content">
+      <div class="section-label">Examples</div>
+      <h1 style="font-size:1.6rem;margin-bottom:0.5rem">Command Examples</h1>
+      <p style="color:var(--text-dim);font-size:0.875rem;margin-bottom:2rem">
+        Practical examples for all current commands. All examples assume <code>jlcpcb</code> is installed
+        and available on your PATH.
+      </p>
+
+      <h2 id="search">Basic search</h2>
+      <pre>jlcpcb search "10k 0402 resistor"
+
+jlcpcb search "100nF capacitor" --basic-only
+
+jlcpcb search "LED" --preferred-only --min-stock 1000
+
+jlcpcb search "STM32" --pages 3 --limit 50</pre>
+      <p>
+        <code>search</code> queries the live JLCPCB catalog and caches results locally.
+        Use <code>--basic-only</code> to restrict to JLCPCB basic parts (lower assembly cost).
+        Use <code>--preferred-only</code> for JLCPCB preferred parts.
+      </p>
+
+      <h2 id="filter">Attribute filtering</h2>
+      <pre>jlcpcb search "0402 resistor" --attr "Resistance >= 10k"
+
+jlcpcb search "0402 capacitor" --attr "Voltage Rated >= 25"
+
+jlcpcb search "MOSFET SOT-23" \
+  --attr "Drain Source Voltage (Vdss) >= 30" \
+  --attr "Continuous Drain Current (Id) >= 5"
+
+jlcpcb search "LDO 3.3V" --max-price 0.50 --basic-only</pre>
+      <p>
+        Operators: <code>&gt;=</code> <code>&lt;=</code> <code>&gt;</code> <code>&lt;</code> <code>=</code> <code>!=</code>.
+        Multiple <code>--attr</code> flags are ANDed. SI prefixes are supported: <code>10k</code>, <code>100n</code>, <code>4.7u</code>, <code>1M</code>.
+      </p>
+
+      <h2 id="formats">Output formats</h2>
+      <p>Most commands accept <code>--format table|json|csv|markdown</code>.</p>
+
+      <h3>Search as JSON</h3>
+      <pre>jlcpcb search "10k resistor" --format json</pre>
+      <pre>{
+  "status": "ok",
+  "command": "search",
+  "count": 2,
+  "results": [
+    {
+      "lcsc_code": "C8287",
+      "mfr_part": "RC0402FR-0710KL",
+      "manufacturer": "YAGEO",
+      "package": "0402",
+      "stock": 500000,
+      "price_qty1": 0.0037
+    }
+  ]
+}</pre>
+
+      <h3>BOM as JSON</h3>
+      <pre>jlcpcb bom --format json</pre>
+      <pre>{
+  "status": "ok",
+  "command": "bom",
+  "data": [
+    {
+      "ref": "R1",
+      "lcsc": "C8287",
+      "quantity": 2,
+      "warnings": []
+    }
+  ]
+}</pre>
+      <p>Note: <code>bom</code> uses <code>"data"</code> instead of <code>"results"</code>.</p>
+
+      <h2 id="cache">Local cache queries</h2>
+      <pre>jlcpcb query
+
+jlcpcb query "resistor" --package 0402
+
+jlcpcb query --attr "Resistance >= 1k" --attr "Resistance <= 100k" --basic-only</pre>
+      <p>
+        <code>query</code> searches only the local cache — no network required.
+        Useful for scripting and offline filtering.
+      </p>
+
+      <h2 id="inspect">Inspect and compare</h2>
+      <pre>jlcpcb fetch C8287
+jlcpcb info C8287
+
+jlcpcb fetch C8287 C25900
+jlcpcb compare C8287 C25900
+
+jlcpcb fetch C8287 --force</pre>
+      <p>
+        <code>fetch</code> caches one or more parts. <code>--force</code> refreshes even if the part was recently cached.
+        <code>info</code> shows full specs, attributes, and links. <code>compare</code> shows a side-by-side table.
+      </p>
+
+      <h2 id="datasheets">Datasheets</h2>
+      <pre>jlcpcb fetch C347356
+jlcpcb analyze C347356 \
+  --prompt "Summarize power rating and operating temperature range"
+
+jlcpcb analyze C347356 --model "anthropic/claude-sonnet-4.6"
+
+jlcpcb datasheet C347356 --pdf -o docs/datasheets/
+
+jlcpcb datasheet C347356 --pdf --summary -o docs/datasheets/</pre>
+      <p>
+        <code>analyze</code> sends the datasheet PDF to OpenRouter and returns markdown.
+        <code>datasheet --summary</code> writes a <code>.md</code> file alongside the PDF.
+        Both require an OpenRouter API key.
+      </p>
+
+      <h2 id="project">Project workflow</h2>
+
+      <h3>Start a new project</h3>
+      <pre>mkdir my-board &amp;&amp; cd my-board
+git init
+jlcpcb init --name "my-board" --description "Motor driver board"</pre>
+
+      <h3>Research and select components</h3>
+      <pre>jlcpcb search "100nF 0402 X7R"
+jlcpcb fetch C1525
+jlcpcb info C1525
+
+jlcpcb select C1525 --ref C1 --qty 1 --notes "Bypass cap"
+jlcpcb select C1525 --ref C2 --qty 1 --notes "Bypass cap"
+jlcpcb select C347356 --ref U2 --qty 1 --notes "LED driver"</pre>
+
+      <h3>BOM review</h3>
+      <pre>jlcpcb bom
+jlcpcb bom --check
+jlcpcb bom --format csv
+jlcpcb bom --format markdown
+jlcpcb status</pre>
+
+      <h3>Edit references</h3>
+      <pre>jlcpcb relabel R1 R3
+jlcpcb deselect C2</pre>
+
+      <h3>Work from outside the project directory</h3>
+      <pre>jlcpcb --project ~/Projects/my-board bom
+
+export JLCPCB_PROJECT=~/Projects/my-board
+jlcpcb status</pre>
+
+      <h3>Commit the result</h3>
+      <pre>git add .jlcpcb/project.yaml
+git commit -m "Select initial BOM components"</pre>
+
+      <h2 id="db">Database commands</h2>
+      <pre>jlcpcb db stats
+
+jlcpcb db clear</pre>
+      <p>
+        The shared cache lives at <code>~/Library/Application Support/jlcpcb/parts.db</code> on macOS
+        or <code>~/.local/share/jlcpcb/parts.db</code> on Linux.
+        <code>db clear</code> wipes all cached parts — they can be re-fetched at any time.
+      </p>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="vibe.html">Getting Started</a>
+    <a href="guide.html">Agent Guide</a>
+    <a href="examples.html">Examples</a>
+    <a href="demo/index.html">Demo</a>
+    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub</a>
+  </div>
+  <div>jlcpcb-tool — open source, MIT license</div>
+</footer>
+
+</body>
+</html>

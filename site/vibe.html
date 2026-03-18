@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibe Circuit Design — jlcpcb-tool</title>
+  <meta name="description" content="Getting started with AI-assisted PCB design using jlcpcb-tool, Claude Code, or any terminal-capable AI agent.">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.css">
+  <style>
+    .guide-page-url {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      background: var(--bg-inset);
+      border: 1px solid var(--border);
+      color: var(--amber);
+      padding: 0.6rem 1rem;
+      word-break: break-all;
+      margin: 0.75rem 0;
+      display: block;
+    }
+    .checklist { list-style: none; padding: 0; margin: 1rem 0; }
+    .checklist li {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      font-size: 0.875rem;
+      color: var(--text-dim);
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .checklist li::before {
+      content: '○';
+      color: var(--green-dim);
+      font-family: var(--mono);
+      flex-shrink: 0;
+      line-height: 1.6;
+    }
+    .workflow-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: start;
+      margin-top: 3rem;
+    }
+    @media (max-width: 700px) { .workflow-split { grid-template-columns: 1fr; } }
+    .task-group { margin-bottom: 2rem; }
+    .task-group h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-faint);
+      margin-bottom: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">jlcpcb<span>-tool</span></a>
+  <ul class="nav-links">
+    <li><a href="vibe.html" class="active">Getting Started</a></li>
+    <li><a href="guide.html">Agent Guide</a></li>
+    <li><a href="examples.html">Examples</a></li>
+    <li><a href="demo/index.html">Demo</a></li>
+  </ul>
+  <a class="nav-github" href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+</nav>
+
+<main>
+<section style="border-top:none;padding-bottom:2rem">
+  <div class="section-label">Getting started</div>
+  <h1>Vibe circuit design</h1>
+  <p style="max-width:600px;margin-top:1rem;font-size:1rem;color:var(--text-dim)">
+    Set up a project, point your AI agent at the tool guide, then find and verify parts
+    through conversation — search by spec, compare candidates, pull datasheets,
+    build the BOM — all backed by real JLCPCB catalog data.
+  </p>
+</section>
+
+<section>
+  <div class="section-label">Prerequisites</div>
+  <h2>Before you start</h2>
+  <ul class="checklist">
+    <li>Install <code>jlcpcb-tool</code>: <code>uv tool install jlcpcb-tool</code></li>
+    <li>A Claude Code, Cursor, Copilot, or other terminal-capable AI agent</li>
+    <li>Optional: an <a href="https://openrouter.ai" target="_blank">OpenRouter</a> API key for datasheet analysis</li>
+  </ul>
+  <p style="font-size:0.875rem;color:var(--text-dim);margin-top:1rem">
+    Most commands work without an OpenRouter key — you only need it for <code>jlcpcb analyze</code>
+    and <code>jlcpcb datasheet --summary</code>.
+  </p>
+</section>
+
+<section>
+  <div class="section-label">Setup</div>
+  <h2>Four steps to get started</h2>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-body">
+        <h3>Create a project folder</h3>
+        <p>
+          Start with a normal directory and initialize git. The BOM will be committed
+          here so part decisions are tracked alongside your design files.
+        </p>
+        <pre>mkdir my-board &amp;&amp; cd my-board
+git init</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-body">
+        <h3>Initialize jlcpcb project metadata</h3>
+        <p>
+          <code>jlcpcb init</code> creates <code>.jlcpcb/project.yaml</code> in the current directory.
+          This file is the source of truth for your BOM — commit it with every change.
+          It also appends PDF ignore rules to <code>.gitignore</code>.
+        </p>
+        <pre>jlcpcb init --name "my-board" --description "What this board does"</pre>
+        <p style="margin-top:0.75rem">
+          You can verify the project was created:
+        </p>
+        <pre>cat .jlcpcb/project.yaml</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-body">
+        <h3>Launch your AI agent</h3>
+        <p>
+          Open Claude Code, Cursor, GitHub Copilot, or any agent that can run terminal commands
+          from your project directory. The agent needs to be able to call <code>jlcpcb</code> directly.
+        </p>
+        <div class="agent-badges" style="margin-top:0.5rem">
+          <span class="tag tag-green">Claude Code</span>
+          <span class="tag tag-green">Cursor Agent</span>
+          <span class="tag tag-green">GitHub Copilot</span>
+          <span class="tag tag-green">Aider</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-body">
+        <h3>Tell the agent to read the tool guide</h3>
+        <p>
+          Give the agent this prompt to load the tool guide. It covers all commands,
+          output formats, caching rules, and project context — everything the agent
+          needs to use <code>jlcpcb</code> correctly.
+        </p>
+        <div class="callout" style="margin-top:0.75rem">
+          <strong>Paste this into your agent:</strong>
+          <br><br>
+          Read the jlcpcb-tool agent guide at this URL:
+          <span class="guide-page-url">https://somebox.github.io/jlcpcb-tool/guide.html</span>
+          Then use <code>jlcpcb</code> to help me find parts for my PCB project.
+          We need [describe what you're building].
+        </div>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.75rem">
+          Alternatively, you can paste the raw markdown from
+          <a href="https://github.com/somebox/jlcpcb-tool/blob/master/docs/jlcpcb-tool-guide.md" target="_blank">docs/jlcpcb-tool-guide.md</a>
+          directly into the agent's context.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── What to ask ──────────────────────────────────────────────── -->
+<section>
+  <div class="section-label">Working with your agent</div>
+  <h2>What to ask</h2>
+  <p style="color:var(--text-dim);margin-bottom:2rem">
+    Once the agent has read the guide, it can handle the full part research and BOM workflow.
+    Here are the kinds of tasks it can do — and example prompts to get started.
+  </p>
+
+  <div class="workflow-split">
+    <div>
+      <div class="task-group">
+        <h3>Find parts</h3>
+        <div class="prompt-list">
+          <div class="prompt-item">Find a 3.3V buck converter in a small package, basic parts only</div>
+          <div class="prompt-item">Search for a Schottky diode, SOD-123, rated for at least 40V and 1A</div>
+          <div class="prompt-item">Find 100nF X7R capacitors in 0402 with at least 10V rating</div>
+          <div class="prompt-item">Look for a tactile switch with 100gf actuating force, basic part if possible</div>
+        </div>
+      </div>
+
+      <div class="task-group">
+        <h3>Compare and decide</h3>
+        <div class="prompt-list">
+          <div class="prompt-item">Compare C8287 and C25900 and recommend the better one for a 10k pull-up on a 3.3V GPIO</div>
+          <div class="prompt-item">Is C347356 a good choice for driving a 1W LED from USB-C? Check the datasheet</div>
+          <div class="prompt-item">Find two alternative MOSFETs to C20917 and compare them</div>
+        </div>
+      </div>
+
+      <div class="task-group">
+        <h3>Datasheets and analysis</h3>
+        <div class="prompt-list">
+          <div class="prompt-item">Download the datasheet for C347356 and summarize the external component requirements</div>
+          <div class="prompt-item">What is the sense resistor formula for the PT4115 at 350mA output current?</div>
+          <div class="prompt-item">Save a markdown summary of the C456012 datasheet to docs/datasheets/</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="task-group">
+        <h3>Build and manage the BOM</h3>
+        <div class="prompt-list">
+          <div class="prompt-item">Add C347356 as U1 with notes "LED driver, PT4115"</div>
+          <div class="prompt-item">Update the BOM: R1 = C8287 × 2, R2 = C8287 × 1, both are 10k pull-ups</div>
+          <div class="prompt-item">Show me the current BOM with stock status</div>
+          <div class="prompt-item">Export the BOM as markdown and save it to docs/bom.md</div>
+          <div class="prompt-item">Remove D1 from the BOM and replace it with C4928</div>
+        </div>
+      </div>
+
+      <div class="task-group">
+        <h3>Cost and availability</h3>
+        <div class="prompt-list">
+          <div class="prompt-item">Estimate the total BOM cost at 50 units and at 500 units</div>
+          <div class="prompt-item">Flag any parts with stock under 1000 or that are not basic parts</div>
+          <div class="prompt-item">Find alternatives for any out-of-stock components</div>
+        </div>
+      </div>
+
+      <div class="task-group">
+        <h3>Commit and review</h3>
+        <div class="prompt-list">
+          <div class="prompt-item">Run bom --check to refresh stock and pricing, then commit the result</div>
+          <div class="prompt-item">Show me what changed in project.yaml since the last commit</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Demo callout ─────────────────────────────────────────────── -->
+<section>
+  <div class="section-label">See it in action</div>
+  <div class="two-col" style="align-items:start">
+    <div>
+      <h2>Watch the demo</h2>
+      <p>
+        The demo walks through a complete USB LED flashlight project from scratch —
+        creating the project, searching and comparing parts, building the BOM,
+        pulling datasheets, and committing the result.
+      </p>
+      <p>
+        It's a good reference for how the tool is intended to be used, and what
+        the output of each command looks like in practice.
+      </p>
+      <a href="demo/index.html" style="display:inline-block;margin-top:1rem;font-family:var(--mono);font-size:0.875rem;border:1px solid var(--border-hi);padding:0.5rem 1rem;color:var(--green)">
+        Watch the demo →
+      </a>
+    </div>
+    <div>
+      <div style="font-family:var(--mono);font-size:0.7rem;color:var(--text-faint);margin-bottom:0.4rem">init + project setup</div>
+      <div class="ap-wrapper" id="player-init"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Tips ─────────────────────────────────────────────────────── -->
+<section>
+  <div class="section-label">Tips</div>
+  <h2>Getting the most out of agent-assisted design</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Be specific about constraints</h3>
+      <p>
+        Mention package size, voltage rating, current, and whether you want basic parts.
+        The more specific you are, the better the agent can filter with <code>--attr</code>.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Use the local cache</h3>
+      <p>
+        After searching, the agent can use <code>query</code> for fast offline filtering.
+        This is useful when iterating on attribute ranges without re-hitting the catalog.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Track decisions in notes</h3>
+      <p>
+        When adding BOM entries, ask the agent to include <code>--notes</code> explaining
+        why the part was chosen. This makes future BOM reviews much easier.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Commit regularly</h3>
+      <p>
+        The BOM is in <code>.jlcpcb/project.yaml</code>. Commit it after each meaningful
+        change so you have a history of every part decision with context.
+      </p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="vibe.html">Getting Started</a>
+    <a href="guide.html">Agent Guide</a>
+    <a href="examples.html">Examples</a>
+    <a href="demo/index.html">Demo</a>
+    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub</a>
+  </div>
+  <div>jlcpcb-tool — open source, MIT license</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.min.js"></script>
+<script>
+  AsciinemaPlayer.create('recordings/scene-init-jlcpcb.cast', document.getElementById('player-init'), {
+    cols: 88, rows: 18, autoPlay: true, loop: true, speed: 1.3,
+    theme: 'monokai', fit: 'width', poster: 'npt:0:3'
+  });
+</script>
+</body>
+</html>

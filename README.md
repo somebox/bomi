@@ -19,6 +19,12 @@ uv sync
 uv tool install -e .
 ```
 
+> **Note for asdf users:** `uv tool install` installs into uv's own tool environment, which may not be on `PATH` under all asdf-managed Python shims. If you get "No preset version installed for command jlcpcb", run directly with:
+> ```bash
+> uv run --directory /path/to/jlcpcb-tool jlcpcb <command>
+> ```
+> Set `JLCPCB_PROJECT` (see [Project Resolution](#project-resolution)) to avoid needing `--project` on every command.
+
 ## Configuration
 
 Global config lives here:
@@ -99,8 +105,14 @@ jlcpcb deselect C2
 Project context is resolved in this order:
 
 1. `--project <path>`
-2. `JLCPCB_PROJECT`
+2. `JLCPCB_PROJECT` env var
 3. walking up from the current directory to find `.jlcpcb/project.yaml`
+
+If you're running `jlcpcb` from outside the project directory (e.g. via `uv run --directory`), set `JLCPCB_PROJECT` so project commands work without `--project` on every call:
+
+```bash
+export JLCPCB_PROJECT=/path/to/my-pcb-project
+```
 
 ## Commands
 

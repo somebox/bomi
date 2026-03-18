@@ -9,14 +9,16 @@ from .units import parse_value
 
 def normalize_search_response(api_response: dict) -> list[Part]:
     """Convert JLCPCB search API response to list of Part objects."""
-    page_info = api_response.get("data", {}).get("componentPageInfo", {})
+    data = api_response.get("data") or {}
+    page_info = data.get("componentPageInfo") or {}
     components = page_info.get("list") or []
     return [_normalize_component(c) for c in components]
 
 
 def get_search_metadata(api_response: dict) -> dict:
     """Extract pagination metadata from search response."""
-    page_info = api_response.get("data", {}).get("componentPageInfo", {})
+    data = api_response.get("data") or {}
+    page_info = data.get("componentPageInfo") or {}
     return {
         "total": page_info.get("total", 0),
         "pages": page_info.get("pages", 0),
@@ -32,7 +34,7 @@ def _normalize_component(c: dict) -> Part:
 
     # Parse prices
     prices = []
-    for p in c.get("componentPrices", []):
+    for p in c.get("componentPrices") or []:
         qty_to = p.get("endNumber")
         if qty_to == -1:
             qty_to = None

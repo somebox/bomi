@@ -108,6 +108,21 @@ def search(keyword, package, min_stock, basic_only, preferred_only,
             max_price=max_price, attr_filters=attr_filters,
         )
 
+        if not filtered and all_parts:
+            active = []
+            if min_stock is not None:
+                active.append(f"--min-stock {min_stock}")
+            if package:
+                active.append(f"--package {package}")
+            if max_price is not None:
+                active.append(f"--max-price {max_price}")
+            if attrs:
+                active.extend(f'--attr "{a}"' for a in attrs)
+            hint = f"Fetched {len(all_parts)} result(s), none passed filters ({', '.join(active)})."
+            if pages == 1:
+                hint += " Try --pages N to fetch more results before filtering."
+            click.echo(hint, err=True)
+
         click.echo(format_parts(filtered, fmt, command="search"))
     finally:
         db.close()
@@ -292,7 +307,9 @@ def analyze(lcsc_code, prompt, model, pdf_engine, fmt):
 
 @cli.command()
 @click.argument("lcsc_codes", nargs=-1, required=True)
-@click.option("--output", "-o", default=".", help="Output directory", type=click.Path())
+@click.option("--output", "-o", default=None,
+              help="Output directory (default: project dir if active, else current dir)",
+              type=click.Path())
 @click.option("--pdf", "dl_pdf", is_flag=True, help="Download datasheet PDF")
 @click.option("--summary", "dl_summary", is_flag=True, help="Generate markdown summary via LLM")
 @click.option("--prompt", default=None, help="Custom analysis prompt for summary")
@@ -300,7 +317,8 @@ def analyze(lcsc_code, prompt, model, pdf_engine, fmt):
 @click.option("--pdf-engine", default="mistral-ocr",
               type=click.Choice(["mistral-ocr", "pdf-text", "native"]),
               help="PDF parsing engine (mistral-ocr for scanned/CJK, pdf-text for clean text, native for model-native)")
-def datasheet(lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_engine):
+@click.pass_context
+def datasheet(ctx, lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_engine):
     """Download datasheets as PDF and/or generate markdown summaries.
 
     Pipeline: download PDF → (optional) save to disk → send to LLM via
@@ -324,6 +342,10 @@ def datasheet(lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_engine)
 
     if not dl_pdf and not dl_summary:
         dl_pdf = True  # default to PDF download if neither specified
+
+    if output is None:
+        project_dir = find_project_dir(override=ctx.obj.get("project_path") if ctx.obj else None)
+        output = str(project_dir) if project_dir else "."
 
     output_dir = Path(output)
     output_dir.mkdir(parents=True, exist_ok=True)

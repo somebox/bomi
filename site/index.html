@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>jlcpcb-tool — CLI for JLCPCB part research and BOM management</title>
+  <meta name="description" content="A command-line tool for searching, inspecting, and managing JLCPCB/LCSC parts. Designed for AI-assisted PCB design workflows.">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">jlcpcb<span>-tool</span></a>
+  <ul class="nav-links">
+    <li><a href="vibe.html">Getting Started</a></li>
+    <li><a href="guide.html">Agent Guide</a></li>
+    <li><a href="examples.html">Examples</a></li>
+    <li><a href="demo/index.html">Demo</a></li>
+  </ul>
+  <a class="nav-github" href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+</nav>
+
+<main>
+
+  <!-- ── Hero ──────────────────────────────────────────────────── -->
+  <section class="hero" style="border-top:none">
+    <div class="hero-text">
+      <div class="section-label">jlcpcb-tool</div>
+      <h1>Part research,<br>BOM as code.<br><span class="glow" style="color:var(--green)">AI-ready.</span></h1>
+      <p class="tagline">
+        A CLI for searching and inspecting JLCPCB/LCSC parts, managing a git-tracked project BOM,
+        and running datasheet analysis — all with structured output your AI agent can read and act on.
+      </p>
+      <div class="agent-badges" style="margin-top:1.5rem;margin-bottom:0.5rem">
+        <span class="tag tag-green">Claude Code</span>
+        <span class="tag tag-green">GitHub Copilot</span>
+        <span class="tag tag-green">Cursor</span>
+        <span class="tag">4M+ JLCPCB parts</span>
+        <span class="tag">local cache</span>
+        <span class="tag">JSON output</span>
+      </div>
+      <div class="install-box">
+        <span class="prompt">$</span>
+        <span>uv tool install jlcpcb-tool</span>
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-faint);margin-top:0.75rem">
+        Requires Python 3.11+ and <a href="https://docs.astral.sh/uv/" target="_blank">uv</a>.
+        OpenRouter key needed only for datasheet analysis.
+      </p>
+    </div>
+    <div class="hero-terminal">
+      <div style="font-family:var(--mono);font-size:0.7rem;color:var(--text-faint);margin-bottom:0.4rem;display:flex;justify-content:space-between">
+        <span>search → inspect → compare</span>
+        <span>live demo</span>
+      </div>
+      <div class="ap-wrapper" id="player-search"></div>
+    </div>
+  </section>
+
+  <!-- ── Capabilities ───────────────────────────────────────────── -->
+  <section>
+    <div class="section-label">What it does</div>
+    <h2>From catalog search to committed BOM</h2>
+    <div class="card-grid">
+      <div class="card">
+        <span class="card-icon">⌕</span>
+        <h3>Part research</h3>
+        <p>
+          Live search across the JLCPCB catalog. Filter by package, stock, price, and attributes
+          like resistance, voltage, or current. Results are cached locally for fast offline access.
+        </p>
+        <pre style="margin-top:1rem">jlcpcb search "buck converter 3.3V"
+jlcpcb search "0402 resistor" \
+  --attr "Resistance >= 10k" \
+  --basic-only</pre>
+      </div>
+      <div class="card">
+        <span class="card-icon">⊞</span>
+        <h3>Inspect and compare</h3>
+        <p>
+          Fetch exact LCSC codes, view full specs, and compare parts side-by-side.
+          All commands support <code>--format json</code> for scripting and agent use.
+        </p>
+        <pre style="margin-top:1rem">jlcpcb fetch C347356 C456012
+jlcpcb compare C347356 C145837
+jlcpcb info C347356 --format json</pre>
+      </div>
+      <div class="card">
+        <span class="card-icon">≡</span>
+        <h3>BOM as code</h3>
+        <p>
+          Selections live in <code>.jlcpcb/project.yaml</code> alongside your design files.
+          BOM changes are diff-able, reviewable, and reproducible.
+        </p>
+        <pre style="margin-top:1rem">jlcpcb init --name "my-board"
+jlcpcb select C347356 --ref U1
+jlcpcb bom --check
+jlcpcb status</pre>
+      </div>
+      <div class="card">
+        <span class="card-icon">⬡</span>
+        <h3>Datasheet analysis</h3>
+        <p>
+          Download datasheet PDFs and run AI analysis via OpenRouter. Get summaries,
+          pin tables, ratings, and application notes as structured markdown.
+        </p>
+        <pre style="margin-top:1rem">jlcpcb analyze C347356 \
+  --prompt "Summarize pin functions"
+jlcpcb datasheet C347356 \
+  --pdf --summary -o docs/</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── BOM demo ────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-label">In action</div>
+    <div class="two-col">
+      <div>
+        <h2>BOM review and cost estimate</h2>
+        <p>
+          <code>jlcpcb bom</code> produces a full table with stock status and per-unit pricing.
+          <code>jlcpcb status</code> gives an overview with warnings, quantity rollup, and rough cost.
+        </p>
+        <p>
+          Run <code>bom --check</code> before ordering to refresh stock and pricing from the live catalog.
+          Export as CSV, JSON, or markdown for downstream use.
+        </p>
+        <p>
+          The BOM file is plain YAML, committed with your design. Every change is tracked in git
+          so you can see exactly when a part was swapped, why, and by whom.
+        </p>
+        <a href="demo/index.html" style="display:inline-block;margin-top:1rem;font-family:var(--mono);font-size:0.85rem;border:1px solid var(--border-hi);padding:0.5rem 1rem;color:var(--green)">
+          Watch the full demo →
+        </a>
+      </div>
+      <div>
+        <div style="font-family:var(--mono);font-size:0.7rem;color:var(--text-faint);margin-bottom:0.4rem">bom + status</div>
+        <div class="ap-wrapper" id="player-bom"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Agentic ─────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-label">Agentic workflows</div>
+    <div class="two-col">
+      <div>
+        <h2>Built for AI-assisted design</h2>
+        <p>
+          Every command produces <code>--format json</code> output with a consistent envelope —
+          status, command name, count, results. Agents can search, inspect, compare, and update
+          the BOM without opening a browser.
+        </p>
+        <p>
+          The <a href="guide.html">agent guide</a> is a short, structured reference designed
+          to be read at the start of a Claude Code or Copilot session. It gives the agent
+          everything it needs to work with the tool: command syntax, output shapes, and project context rules.
+        </p>
+        <p>
+          Works with any AI assistant that can execute terminal commands:
+        </p>
+        <div class="agent-badges">
+          <span class="tag tag-green">Claude Code</span>
+          <span class="tag tag-green">GitHub Copilot</span>
+          <span class="tag tag-green">Cursor Agent</span>
+          <span class="tag tag-green">Aider</span>
+          <span class="tag">any terminal-capable agent</span>
+        </div>
+      </div>
+      <div>
+        <h3 style="color:var(--text-dim);font-size:0.8rem;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:1rem">Example agent prompts</h3>
+        <div class="prompt-list">
+          <div class="prompt-item">Find a 3.3V LDO in SOT-23, basic parts only, at least 500mA</div>
+          <div class="prompt-item">Compare the two resistor options and recommend the better one for 3.3V GPIO pull-up</div>
+          <div class="prompt-item">Download the PT4115 datasheet and summarize the switching frequency and sense resistor formula</div>
+          <div class="prompt-item">Update the BOM with U1 = C347356, R1 = C8287 × 2, add notes for each</div>
+          <div class="prompt-item">Estimate the BOM cost at 100 units and flag anything with stock under 1000</div>
+          <div class="prompt-item">Search for an alternative to C347356 if it goes out of stock</div>
+          <div class="prompt-item">Export the BOM as markdown and add it to docs/bom.md</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Vibe CTA ────────────────────────────────────────────────── -->
+  <section>
+    <div class="section-label">Getting started</div>
+    <div style="display:grid;grid-template-columns:1fr 380px;gap:3rem;align-items:center">
+      <div>
+        <h2>Vibe circuit design</h2>
+        <p>
+          Set up a project in a few commands, point Claude (or your agent of choice) at the tool guide,
+          and start finding parts conversationally. Search by spec, compare candidates, pull datasheets,
+          build the BOM — all through natural language backed by real catalog data.
+        </p>
+        <a href="vibe.html" style="display:inline-block;margin-top:1.25rem;font-family:var(--mono);font-size:0.875rem;background:var(--green);color:#000;padding:0.6rem 1.25rem;font-weight:600">
+          Getting started guide →
+        </a>
+      </div>
+      <div>
+        <pre style="font-size:0.8rem">mkdir my-board &amp;&amp; cd my-board
+git init
+jlcpcb init --name "my-board"
+
+# then, in Claude Code:
+# "Read the jlcpcb-tool guide at
+#  [URL]. Find me a 3.3V buck
+#  converter, basic parts only,
+#  SOT-23 or smaller."</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Quick start ─────────────────────────────────────────────── -->
+  <section>
+    <div class="section-label">Install and configure</div>
+    <div class="two-col">
+      <div>
+        <h2>Install</h2>
+        <pre>uv tool install jlcpcb-tool</pre>
+        <p style="font-size:0.875rem;margin-top:1rem;color:var(--text-dim)">
+          Or install in editable mode for development:
+        </p>
+        <pre>git clone https://github.com/somebox/jlcpcb-tool
+cd jlcpcb-tool
+uv sync
+uv tool install -e .</pre>
+      </div>
+      <div>
+        <h2>Configure</h2>
+        <p style="font-size:0.875rem;color:var(--text-dim)">
+          Most commands work without any configuration.
+          Add an OpenRouter key only if you want datasheet analysis:
+        </p>
+        <pre><span style="color:var(--text-dim)"># macOS: ~/Library/Application Support/jlcpcb/config.yaml
+# Linux: ~/.local/share/jlcpcb/config.yaml</span>
+
+openrouter_api_key: sk-or-v1-...</pre>
+        <p style="font-size:0.8rem;color:var(--text-faint);margin-top:0.75rem">
+          Or set <code>JLCPCB_OPENROUTER_API_KEY</code> in your environment.
+        </p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="vibe.html">Getting Started</a>
+    <a href="guide.html">Agent Guide</a>
+    <a href="examples.html">Examples</a>
+    <a href="demo/index.html">Demo</a>
+    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub</a>
+  </div>
+  <div>jlcpcb-tool — open source, MIT license</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.min.js"></script>
+<script>
+  AsciinemaPlayer.create('recordings/scene-search-core-parts.cast', document.getElementById('player-search'), {
+    cols: 88, rows: 24, autoPlay: true, loop: true, speed: 1.4,
+    theme: 'monokai', fit: 'width', poster: 'npt:0:3'
+  });
+  AsciinemaPlayer.create('recordings/scene-review-bom-status.cast', document.getElementById('player-bom'), {
+    cols: 88, rows: 20, autoPlay: true, loop: true, speed: 1.2,
+    theme: 'monokai', fit: 'width', poster: 'npt:0:2'
+  });
+</script>
+</body>
+</html>
