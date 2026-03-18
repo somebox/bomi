@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>jlcpcb-tool Demo - USB LED Flashlight</title>
+    <title>bomi Demo - USB LED Flashlight</title>
 
     <link
       rel="stylesheet"
@@ -160,7 +160,7 @@
         <section>
           <div class="title-card">
             <div class="section-tag">Demo</div>
-            <h1>jlcpcb-tool</h1>
+            <h1>bomi</h1>
             <h3>Building and Validating a USB LED Flashlight BOM</h3>
             <p>
               Search parts, compare options, select BOM entries, validate stock and cost, and keep
@@ -222,11 +222,11 @@
         </section>
 
         <section>
-          <h3>Initialize jlcpcb project metadata</h3>
+          <h3>Initialize bomi project metadata</h3>
           <div class="demo-grid">
             <div class="terminal-panel">
               <asciinema-player
-                src="./recordings/scene-init-jlcpcb.cast"
+                src="./recordings/scene-init-bomi.cast"
                 cols="75"
                 rows="28"
                 speed="1.5"
@@ -239,14 +239,14 @@
             <div class="notes-panel">
               <h4>Concept</h4>
               <ul>
-                <li><code>.jlcpcb/project.yaml</code> becomes project BOM source-of-truth.</li>
+                <li><code>.bomi/project.yaml</code> becomes project BOM source-of-truth.</li>
                 <li>Metadata is lightweight and repository-friendly.</li>
               </ul>
               <div class="commands-box">
                 <h5>Key Commands</h5>
-                <pre><code>jlcpcb init --name "usb-led-flashlight" --description "..."</code></pre>
-                <p class="cmd-expl">Create `.jlcpcb/project.yaml` for this project.</p>
-                <pre><code>ls -la .jlcpcb</code></pre>
+                <pre><code>bomi init --name "usb-led-flashlight" --description "..."</code></pre>
+                <p class="cmd-expl">Create `.bomi/project.yaml` for this project.</p>
+                <pre><code>ls -la .bomi</code></pre>
                 <p class="cmd-expl">Confirm project metadata files were created.</p>
               </div>
             </div>
@@ -284,9 +284,9 @@
               </ul>
               <div class="commands-box">
                 <h5>Key Commands</h5>
-                <pre><code>jlcpcb search &lt;term&gt; --limit n</code></pre>
+                <pre><code>bomi search &lt;term&gt; --limit n</code></pre>
                 <p class="cmd-expl">Find components matching a term and cap results at `n`.</p>
-                <pre><code>jlcpcb search "PT4115 LED driver" --limit 5</code></pre>
+                <pre><code>bomi search "PT4115 LED driver" --limit 5</code></pre>
                 <p class="cmd-expl">Shortlist driver candidates with stock/price data.</p>
               </div>
             </div>
@@ -316,9 +316,9 @@
               </ul>
               <div class="commands-box">
                 <h5>Key Commands</h5>
-                <pre><code>jlcpcb fetch &lt;lcsc_code&gt;</code></pre>
+                <pre><code>bomi fetch &lt;lcsc_code&gt;</code></pre>
                 <p class="cmd-expl">Cache exact part details locally.</p>
-                <pre><code>jlcpcb info &lt;lcsc_code&gt;</code></pre>
+                <pre><code>bomi info &lt;lcsc_code&gt;</code></pre>
                 <p class="cmd-expl">Inspect ratings, attributes, and datasheet links.</p>
               </div>
             </div>
@@ -348,9 +348,9 @@
               </ul>
               <div class="commands-box">
                 <h5>Key Commands</h5>
-                <pre><code>jlcpcb search "Schottky diode SOD-123" --basic-only --limit 5</code></pre>
+                <pre><code>bomi search "Schottky diode SOD-123" --basic-only --limit 5</code></pre>
                 <p class="cmd-expl">Find low-cost, assembly-friendly diode options.</p>
-                <pre><code>jlcpcb search "inductor 47uH SMD" --limit 5</code></pre>
+                <pre><code>bomi search "inductor 47uH SMD" --limit 5</code></pre>
                 <p class="cmd-expl">Find suitable buck inductor candidates.</p>
               </div>
             </div>
@@ -388,9 +388,9 @@
               </ul>
               <div class="commands-box">
                 <h5>Key Commands</h5>
-                <pre><code>jlcpcb compare &lt;lcsc_a&gt; &lt;lcsc_b&gt;</code></pre>
+                <pre><code>bomi compare &lt;lcsc_a&gt; &lt;lcsc_b&gt;</code></pre>
                 <p class="cmd-expl">Compare specs and trade-offs side by side.</p>
-                <pre><code>jlcpcb compare C49023761 C145837</code></pre>
+                <pre><code>bomi compare C49023761 C145837</code></pre>
                 <p class="cmd-expl">Evaluate switch options quickly.</p>
               </div>
             </div>
@@ -428,9 +428,9 @@
               </ul>
               <div class="commands-box">
                 <h5>Key Commands</h5>
-                <pre><code>jlcpcb select &lt;lcsc_code&gt; --ref &lt;ref&gt; --qty n --notes "..."</code></pre>
+                <pre><code>bomi select &lt;lcsc_code&gt; --ref &lt;ref&gt; --qty n --notes "..."</code></pre>
                 <p class="cmd-expl">Add or assign a part to a BOM reference.</p>
-                <pre><code>jlcpcb select C347356 --ref U1 --qty 1 --notes "PT4115 LED driver"</code></pre>
+                <pre><code>bomi select C347356 --ref U1 --qty 1 --notes "PT4115 LED driver"</code></pre>
                 <p class="cmd-expl">Record one concrete project selection.</p>
               </div>
             </div>
@@ -460,9 +460,9 @@
               </ul>
               <div class="commands-box">
                 <h5>Key Commands</h5>
-                <pre><code>jlcpcb bom</code></pre>
+                <pre><code>bomi bom</code></pre>
                 <p class="cmd-expl">Show the full resolved project BOM.</p>
-                <pre><code>jlcpcb status</code></pre>
+                <pre><code>bomi status</code></pre>
                 <p class="cmd-expl">Summarize cost, count, and warnings.</p>
               </div>
             </div>
@@ -493,9 +493,9 @@
               </ul>
               <div class="commands-box">
                 <h5>Key Commands</h5>
-                <pre><code>jlcpcb relabel C1 C99; jlcpcb relabel C2 C1; jlcpcb relabel C99 C2</code></pre>
+                <pre><code>bomi relabel C1 C99; bomi relabel C2 C1; bomi relabel C99 C2</code></pre>
                 <p class="cmd-expl">Swap references safely using a temporary designator.</p>
-                <pre><code>jlcpcb bom --check</code></pre>
+                <pre><code>bomi bom --check</code></pre>
                 <p class="cmd-expl">Refresh stock/price and validate BOM health.</p>
               </div>
             </div>
@@ -525,7 +525,7 @@
               </ul>
               <div class="commands-box">
                 <h5>Key Commands</h5>
-                <pre><code>jlcpcb datasheet &lt;codes...&gt; --pdf -o artifacts/datasheets</code></pre>
+                <pre><code>bomi datasheet &lt;codes...&gt; --pdf -o artifacts/datasheets</code></pre>
                 <p class="cmd-expl">Capture datasheet PDFs as project artifacts.</p>
                 <pre><code>git status --short</code></pre>
                 <p class="cmd-expl">Review all changes before committing.</p>

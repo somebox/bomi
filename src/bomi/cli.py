@@ -47,7 +47,7 @@ def _require_project(ctx) -> "Project":
     project_path = ctx.obj.get("project_path")
     project_dir = find_project_dir(override=project_path)
     if not project_dir:
-        click.echo("No project found. Run 'jlcpcb init' or use --project.", err=True)
+        click.echo("No project found. Run 'bomi init' or use --project.", err=True)
         sys.exit(1)
     return load_project(project_dir)
 
@@ -216,7 +216,7 @@ def info(lcsc_code, fmt):
 
         part = db.get_part(code)
         if not part:
-            click.echo(f"Part {code} not found in local database. Run 'jlcpcb fetch {code}' first.", err=True)
+            click.echo(f"Part {code} not found in local database. Run 'bomi fetch {code}' first.", err=True)
             sys.exit(1)
 
         click.echo(format_part_detail(part, fmt))
@@ -281,7 +281,7 @@ def analyze(lcsc_code, prompt, model, pdf_engine, fmt):
 
         part = db.get_part(code)
         if not part:
-            click.echo(f"Part {code} not found. Run 'jlcpcb fetch {code}' first.", err=True)
+            click.echo(f"Part {code} not found. Run 'bomi fetch {code}' first.", err=True)
             sys.exit(1)
 
         try:
@@ -338,11 +338,11 @@ def datasheet(ctx, lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_en
 
     Examples:
 
-        jlcpcb datasheet C9864 --pdf -o docs/datasheets/
+        bomi datasheet C9864 --pdf -o docs/datasheets/
 
-        jlcpcb datasheet C9864 --summary --model openai/gpt-5.4
+        bomi datasheet C9864 --summary --model openai/gpt-5.4
 
-        jlcpcb datasheet C9864 --pdf --summary --pdf-engine pdf-text
+        bomi datasheet C9864 --pdf --summary --pdf-engine pdf-text
     """
     from .analysis import analyze_part, download_pdf
 
@@ -365,7 +365,7 @@ def datasheet(ctx, lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_en
 
             part = db.get_part(code)
             if not part:
-                click.echo(f"Part {code} not found. Run 'jlcpcb fetch {code}' first.", err=True)
+                click.echo(f"Part {code} not found. Run 'bomi fetch {code}' first.", err=True)
                 continue
 
             if not part.datasheet_url:
@@ -481,6 +481,50 @@ def clear():
         database.close()
 
 
+# ── About ────────────────────────────────────────────────────────────
+
+_LOGO_ASCII = """\
+                          @###???#@@
+                          @++#:;;###@@@
+                          ###@#@@@   #@@
+                @#%%#@                 @@
+               ##+::;%@@#??#@           @@
+               #?:;;:*#*::::?#           @@
+               @#+;++#+,:::;#@            @
+           ##%%??%?*??:::::?%%%#@@        @@
+     ,;#@ #%;,,,,?*,;::::::::::;+*%#@     @@
+ ,;;*%?%?#;%#?+;::,:%*:::::::::::,:;*%@   @@
+ %?%%%##?%%,, @@%?+:::::::::::::::::,:+#@ @@
+ #?%#%%?#%%%+#    @%::::::::::::::::::,:%@#@
+:;#?%%%%%#?#@#@@ ###:::::::::::::::::::::%##
+ :;#?%%%%%%%  #@@###;:::::::::::::::::::,+@#
+  ,+#?%%**:.@#    #@+,:::::::::::::::::::;@
+  ;. @+:,:  @@@@@@#@%:::::::::::::::::::,*@
+                    @%;,:::::::::::::::,+##
+                     @#?;:,,,:::::::,:;?@@
+                       @@%*++++;;;++*?#@
+                        #@@@@@@@@@@@@@
+                    @@@@@#  ##
+                    @     @@@\
+"""
+
+
+@cli.command()
+def about():
+    """Show information about bomi."""
+    click.echo(_LOGO_ASCII)
+    click.echo()
+    click.echo("  bomi — CLI for agent-assisted circuit design")
+    click.echo()
+    click.echo("  Built by Jeremy Seitz. Hardware hacker, software generalist,")
+    click.echo("  living in Switzerland. More at https://swiss.social/@somebox")
+    click.echo()
+    click.echo("  Logo by Fern.")
+    click.echo()
+    click.echo("  Source: https://github.com/somebox/bomi")
+    click.echo("  License: MIT")
+
+
 # ── New project commands ─────────────────────────────────────────────
 
 
@@ -493,7 +537,7 @@ def init(ctx, name, desc):
     from .project import init_project
 
     directory = Path.cwd()
-    project_yaml = directory / ".jlcpcb" / "project.yaml"
+    project_yaml = directory / ".bomi" / "project.yaml"
     if project_yaml.exists():
         click.echo(f"Project already exists at {project_yaml}", err=True)
         sys.exit(1)

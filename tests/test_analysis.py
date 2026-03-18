@@ -4,8 +4,8 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 
-from jlcpcb_tool.analysis import analyze_part, analyze_pdf, download_pdf, split_pdf, _estimate_cost
-from jlcpcb_tool.models import Part, PriceTier, Attribute
+from bomi.analysis import analyze_part, analyze_pdf, download_pdf, split_pdf, _estimate_cost
+from bomi.models import Part, PriceTier, Attribute
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ FAKE_PDF = b"%PDF-1.4 fake pdf content for testing"
 
 
 class TestDownloadPdf:
-    @patch("jlcpcb_tool.analysis.requests.get")
+    @patch("bomi.analysis.requests.get")
     def test_download_success(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.ok = True
@@ -44,7 +44,7 @@ class TestDownloadPdf:
         result = download_pdf("https://example.com/test.pdf")
         assert result == FAKE_PDF
 
-    @patch("jlcpcb_tool.analysis.requests.get")
+    @patch("bomi.analysis.requests.get")
     def test_download_not_pdf(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.ok = True
@@ -54,7 +54,7 @@ class TestDownloadPdf:
         result = download_pdf("https://example.com/test.pdf")
         assert result is None
 
-    @patch("jlcpcb_tool.analysis.requests.get")
+    @patch("bomi.analysis.requests.get")
     def test_download_tries_resolved_url(self, mock_get):
         """LCSC URLs should try both original and resolved forms."""
         mock_resp_fail = MagicMock()
@@ -94,16 +94,16 @@ class TestAnalyzePart:
         assert "error" in result
         assert "No datasheet" in result["error"]
 
-    @patch("jlcpcb_tool.analysis.get_secret")
+    @patch("bomi.analysis.get_secret")
     def test_no_api_key(self, mock_secret, tmp_db, part_with_datasheet):
         mock_secret.return_value = None
         result = analyze_part(tmp_db, part_with_datasheet)
         assert "error" in result
         assert "not configured" in result["error"]
 
-    @patch("jlcpcb_tool.analysis.requests.post")
-    @patch("jlcpcb_tool.analysis.download_pdf")
-    @patch("jlcpcb_tool.analysis.get_secret")
+    @patch("bomi.analysis.requests.post")
+    @patch("bomi.analysis.download_pdf")
+    @patch("bomi.analysis.get_secret")
     def test_analyze_success(self, mock_secret, mock_download, mock_post,
                               tmp_db, part_with_datasheet):
         mock_secret.return_value = "test-key"
@@ -129,8 +129,8 @@ class TestAnalyzePart:
         analyses = tmp_db.get_analyses("C8287")
         assert len(analyses) == 1
 
-    @patch("jlcpcb_tool.analysis.requests.post")
-    @patch("jlcpcb_tool.analysis.get_secret")
+    @patch("bomi.analysis.requests.post")
+    @patch("bomi.analysis.get_secret")
     def test_analyze_with_provided_pdf(self, mock_secret, mock_post,
                                         tmp_db, part_with_datasheet):
         """When pdf_data is provided, skip download."""
@@ -151,8 +151,8 @@ class TestAnalyzePart:
         assert result["response"] == "Analysis result"
         # download_pdf should not have been called
 
-    @patch("jlcpcb_tool.analysis.download_pdf")
-    @patch("jlcpcb_tool.analysis.get_secret")
+    @patch("bomi.analysis.download_pdf")
+    @patch("bomi.analysis.get_secret")
     def test_analyze_download_fails(self, mock_secret, mock_download,
                                      tmp_db, part_with_datasheet):
         mock_secret.return_value = "test-key"

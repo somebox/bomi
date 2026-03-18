@@ -1,6 +1,6 @@
 # Demo Video Assets
 
-This directory contains everything needed to produce the demo presentation for `jlcpcb-tool`.
+This directory contains everything needed to produce the demo presentation for `bomi`.
 
 The demo walks through a sample USB LED flashlight project and shows how to:
 
@@ -30,7 +30,7 @@ demo/
 
 - `uv` (for running Python in project env)
 - `asciinema` 3.x
-- network access (live `jlcpcb search/fetch` calls)
+- network access (live `bomi search/fetch` calls)
 
 ## Generate Recordings
 
@@ -79,3 +79,9 @@ Open:
 3. Regenerate recordings with `demo/generator/record_all.py`.
 4. Adjust slide text/layout in `demo/presentation/index.html`.
 5. Re-run generation if slide references or scenes changed.
+
+## Maintenance Notes
+
+For ongoing maintenance, tuning, and troubleshooting details, see:
+
+- `demo/dev-notes.md`

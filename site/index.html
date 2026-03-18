@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>jlcpcb-tool — CLI for agent-assisted circuit design</title>
+  <title>bomi — CLI for agent-assisted circuit design</title>
   <meta name="description" content="A CLI for searching JLCPCB/LCSC parts, managing a version-controlled BOM, and running AI datasheet analysis. Built for use with Claude Code, Copilot, and other AI agents.">
   <link rel="stylesheet" href="assets/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.css">
@@ -11,13 +11,13 @@
 <body>
 
 <nav>
-  <a class="nav-logo" href="index.html">jlcpcb<span>-tool</span></a>
+  <a class="nav-logo" href="index.html">bomi<img class="nav-logo-img" src="assets/logo.png" alt=""></a>
   <ul class="nav-links">
     <li><a href="vibe.html">Getting Started</a></li>
     <li><a href="guide.html">Agent Guide</a></li>
     <li><a href="examples.html">Examples</a></li>
   </ul>
-  <a class="nav-github" href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+  <a class="nav-github" href="https://github.com/somebox/bomi" target="_blank">GitHub ↗</a>
 </nav>
 
 <main>
@@ -25,14 +25,17 @@
   <!-- ── Hero ──────────────────────────────────────────────────── -->
   <section class="hero" style="border-top:none">
     <div class="hero-text">
-      <div class="section-label">jlcpcb-tool</div>
-      <h1>CLI for agent-assisted circuit design</h1>
+      <div class="section-label">bomi</div>
+      <h1>bomi:</h1>
+      <h2>A CLI to manage your project components</h2>
       <p class="tagline">
         Search, inspect, and compare components. Capture the specs, assign designators, and track costs.
         Manage a version-controlled BOM with faster research, revisions,
         component swaps, and decisions. Human-friendly CLI and works well with AI agents.
       </p>
       <div class="agent-badges">
+        <span class="tag">JLCPCB</span>
+        <span class="tag">LCSC</span>
         <span class="tag tag-blue">Claude Code</span>
         <span class="tag tag-blue">OpenCode</span>
         <span class="tag tag-blue">Cursor</span>
@@ -44,7 +47,7 @@
       </div>
       <div class="install-box">
         <span class="prompt">$</span>
-        <span>git clone github.com/somebox/jlcpcb-tool &amp;&amp; uv tool install -e .</span>
+        <span>git clone github.com/somebox/bomi &amp;&amp; uv tool install -e .</span>
       </div>
       <p style="font-size:0.78rem;color:var(--text-faint);margin-top:0.6rem">
         Requires Python 3.11+ and <a href="https://docs.astral.sh/uv/" target="_blank">uv</a>.
@@ -52,6 +55,12 @@
       </p>
     </div>
     <div class="hero-terminal">
+      <div class="hero-logo-wrap">
+        <div class="hero-logo-inner">
+          <img class="hero-logo" src="assets/logo.png" alt="bomi logo">
+          <span class="logo-credit">logo by Fern</span>
+        </div>
+      </div>
       <div class="player-label" id="slideshow-label"></div>
       <div class="slideshow-wrap">
         <div class="ap-wrapper slideshow-slide active" id="slide-0"></div>
@@ -109,30 +118,30 @@
       <div class="feature-row">
         <div class="feature-name">Part research<small>search, fetch, inspect, compare</small></div>
         <div class="feature-desc">Live JLCPCB catalog search with attribute filtering by resistance, voltage, current, and more. Results are cached locally for offline access and fast re-querying.</div>
-        <pre class="feature-code">jlcpcb search "buck 3.3V" --basic-only
-jlcpcb fetch C347356
-jlcpcb compare C347356 C145837</pre>
+        <pre class="feature-code">bomi search "buck 3.3V" --basic-only
+bomi fetch C347356
+bomi compare C347356 C145837</pre>
       </div>
       <div class="feature-row">
         <div class="feature-name">Version-controlled BOM<small>init, select, bom, status</small></div>
-        <div class="feature-desc">Selections live in <code>.jlcpcb/project.yaml</code> alongside your design files. Every part addition, swap, or relabel is a reviewable git diff.</div>
-        <pre class="feature-code">jlcpcb init --name "my-board"
-jlcpcb select C347356 --ref U1
-git add .jlcpcb &amp;&amp; git commit</pre>
+        <div class="feature-desc">Selections live in <code>.bomi/project.yaml</code> alongside your design files. Every part addition, swap, or relabel is a reviewable git diff.</div>
+        <pre class="feature-code">bomi init --name "my-board"
+bomi select C347356 --ref U1
+git add .bomi &amp;&amp; git commit</pre>
       </div>
       <div class="feature-row">
         <div class="feature-name">Cost management<small>status, bom --check</small></div>
         <div class="feature-desc">Per-unit pricing at any quantity, BOM cost rollup, stock warnings, and live refresh from the catalog before ordering.</div>
-        <pre class="feature-code">jlcpcb status
-jlcpcb bom --check
-jlcpcb bom --format csv</pre>
+        <pre class="feature-code">bomi status
+bomi bom --check
+bomi bom --format csv</pre>
       </div>
       <div class="feature-row">
         <div class="feature-name">Datasheet analysis<small>analyze, datasheet</small></div>
         <div class="feature-desc">Download PDFs and run AI analysis via OpenRouter. Get ratings, pin tables, and application notes as structured markdown. Requires an OpenRouter key.</div>
-        <pre class="feature-code">jlcpcb analyze C347356 \
+        <pre class="feature-code">bomi analyze C347356 \
   --prompt "Summarize pin functions"
-jlcpcb datasheet C347356 \
+bomi datasheet C347356 \
   --pdf --summary -o docs/</pre>
       </div>
     </div>
@@ -145,8 +154,8 @@ jlcpcb datasheet C347356 \
         <div class="section-label">In action</div>
         <h2>BOM review and cost estimate</h2>
         <p>
-          <code>jlcpcb bom</code> shows the full BOM with stock and pricing.
-          <code>jlcpcb status</code> gives cost rollup, quantity summary, and warnings.
+          <code>bomi bom</code> shows the full BOM with stock and pricing.
+          <code>bomi status</code> gives cost rollup, quantity summary, and warnings.
         </p>
         <p>
           Run <code>bom --check</code> before ordering to refresh from the live catalog.
@@ -169,8 +178,8 @@ jlcpcb datasheet C347356 \
     <div class="two-col">
       <div>
         <h2>Install</h2>
-        <pre>git clone https://github.com/somebox/jlcpcb-tool
-cd jlcpcb-tool
+        <pre>git clone https://github.com/somebox/bomi
+cd bomi
 uv tool install -e .</pre>
         <p style="margin-top:0.9rem;font-size:0.85rem">For development (run tests etc.):</p>
         <pre>uv sync
@@ -181,12 +190,12 @@ uv run pytest -v</pre>
         <p style="font-size:0.85rem">
           Most commands work without any configuration. Add an OpenRouter key for datasheet analysis:
         </p>
-        <pre><span style="color:#8b949e"># macOS: ~/Library/Application Support/jlcpcb/config.yaml
-# Linux: ~/.local/share/jlcpcb/config.yaml</span>
+        <pre><span style="color:#8b949e"># macOS: ~/Library/Application Support/bomi/config.yaml
+# Linux: ~/.local/share/bomi/config.yaml</span>
 
 openrouter_api_key: sk-or-v1-...</pre>
         <p style="font-size:0.78rem;color:var(--text-faint);margin-top:0.6rem">
-          Or set <code>JLCPCB_OPENROUTER_API_KEY</code> in your environment.
+          Or set <code>BOMI_OPENROUTER_API_KEY</code> in your environment.
         </p>
       </div>
     </div>
@@ -200,9 +209,9 @@ openrouter_api_key: sk-or-v1-...</pre>
     <a href="vibe.html">Getting Started</a>
     <a href="guide.html">Agent Guide</a>
     <a href="examples.html">Examples</a>
-    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+    <a href="https://github.com/somebox/bomi" target="_blank">GitHub ↗</a>
   </div>
-  <div>jlcpcb-tool v__BUILD_VERSION__ &nbsp;·&nbsp; <a href="https://swiss.social/@somebox" target="_blank">Jeremy Seitz</a> &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
+  <div>bomi v__BUILD_VERSION__ &nbsp;·&nbsp; <a href="https://swiss.social/@somebox" target="_blank">Jeremy Seitz</a> &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.min.js"></script>

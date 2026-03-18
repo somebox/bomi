@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate a scripted agent-chat demo cast file.
 
-Simulates an AI agent session running jlcpcb tool calls for a BOM stock review.
+Simulates an AI agent session running bomi tool calls for a BOM stock review.
 Output: site/recordings/scene-agent-bom-review.cast
 
 All timing is in whole milliseconds. Asciinema v3 uses *relative* timestamps
@@ -143,7 +143,7 @@ def build() -> Stream:
 
     # ── Tool: bom rgb-spotlight ───────────────────────────────────────────────
     s.wait(400)
-    s.tool("Bash", "jlcpcb bom --project rgb-spotlight --check")
+    s.tool("Bash", "bomi bom --project rgb-spotlight --check")
     s.wait(650)
     s.output_block([
         f"  Ref   LCSC         Qty  Part                          Stock    Price",
@@ -157,7 +157,7 @@ def build() -> Stream:
 
     # ── Tool: bom esphome-dimmer ──────────────────────────────────────────────
     s.wait(300)
-    s.tool("Bash", "jlcpcb bom --project esphome-dimmer-switch --check")
+    s.tool("Bash", "bomi bom --project esphome-dimmer-switch --check")
     s.wait(650)
     s.output_block([
         f"  Ref    LCSC         Qty  Part                          Stock    Price",
@@ -169,7 +169,7 @@ def build() -> Stream:
 
     # ── Tool: bom usb-led-flashlight ──────────────────────────────────────────
     s.wait(300)
-    s.tool("Bash", "jlcpcb bom --project usb-led-flashlight --check")
+    s.tool("Bash", "bomi bom --project usb-led-flashlight --check")
     s.wait(650)
     s.output_block([
         f"  Ref      LCSC        Qty  Part                      Stock    Price",
@@ -199,7 +199,7 @@ def build() -> Stream:
     s.wait(1200)
     s.out(f"\r\n{BULLET} Searching for replacements...\r\n")
     s.wait(400)
-    s.tool("Bash", "jlcpcb search \"47uH inductor SMD 4030\" --limit 5")
+    s.tool("Bash", "bomi search \"47uH inductor SMD 4030\" --limit 5")
     s.wait(700)
     s.output_block([
         f"  LCSC       MFR Part               Package    Stock    Price   Type",
@@ -210,7 +210,7 @@ def build() -> Stream:
 
     # ── Search for level shifter replacement ─────────────────────────────────
     s.wait(1400)
-    s.tool("Bash", "jlcpcb search \"SN74AHCT1G125 SOT-23-5\" --limit 5")
+    s.tool("Bash", "bomi search \"SN74AHCT1G125 SOT-23-5\" --limit 5")
     s.wait(700)
     s.output_block([
         f"  LCSC      MFR Part                 Package      Stock   Price   Type",

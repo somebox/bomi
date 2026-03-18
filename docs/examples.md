@@ -1,39 +1,39 @@
 # Usage Examples
 
-This file focuses on commands that are implemented in the current CLI. For a structured agent reference, see `docs/jlcpcb-tool-guide.md` or [somebox.github.io/jlcpcb-tool/examples.html](https://somebox.github.io/jlcpcb-tool/examples.html).
+This file focuses on commands that are implemented in the current CLI. For a structured agent reference, see `docs/bomi-guide.md` or [somebox.github.io/bomi/examples.html](https://somebox.github.io/bomi/examples.html).
 
 ## Basic Search
 
 ```bash
 # Search for 10k resistors in 0402
-jlcpcb search "10k 0402 resistor"
+bomi search "10k 0402 resistor"
 
 # Restrict to basic parts
-jlcpcb search "100nF capacitor" --basic-only
+bomi search "100nF capacitor" --basic-only
 
 # Preferred parts with minimum stock
-jlcpcb search "LED" --preferred-only --min-stock 1000
+bomi search "LED" --preferred-only --min-stock 1000
 
 # Fetch more than one results page
-jlcpcb search "STM32" --pages 3 --limit 50
+bomi search "STM32" --pages 3 --limit 50
 ```
 
 ## Attribute Filtering
 
 ```bash
 # Find resistors >= 10k
-jlcpcb search "0402 resistor" --attr "Resistance >= 10k"
+bomi search "0402 resistor" --attr "Resistance >= 10k"
 
 # Find capacitors rated for at least 25V
-jlcpcb search "0402 capacitor" --attr "Voltage Rated >= 25"
+bomi search "0402 capacitor" --attr "Voltage Rated >= 25"
 
 # AND multiple attribute filters together
-jlcpcb search "MOSFET SOT-23" \
+bomi search "MOSFET SOT-23" \
   --attr "Drain Source Voltage (Vdss) >= 30" \
   --attr "Continuous Drain Current (Id) >= 5"
 
 # Add a price cap
-jlcpcb search "LDO 3.3V" --max-price 0.50 --basic-only
+bomi search "LDO 3.3V" --max-price 0.50 --basic-only
 ```
 
 ## Output Formats
@@ -41,7 +41,7 @@ jlcpcb search "LDO 3.3V" --max-price 0.50 --basic-only
 ### Search as JSON
 
 ```bash
-jlcpcb search "10k resistor" --format json
+bomi search "10k resistor" --format json
 ```
 
 ```json
@@ -65,7 +65,7 @@ jlcpcb search "10k resistor" --format json
 ### BOM as JSON
 
 ```bash
-jlcpcb bom --format json
+bomi bom --format json
 ```
 
 ```json
@@ -87,27 +87,27 @@ jlcpcb bom --format json
 
 ```bash
 # Query all cached parts
-jlcpcb query
+bomi query
 
 # Query by keyword
-jlcpcb query "resistor" --package 0402
+bomi query "resistor" --package 0402
 
 # Query by attributes
-jlcpcb query --attr "Resistance >= 1k" --attr "Resistance <= 100k" --basic-only
+bomi query --attr "Resistance >= 1k" --attr "Resistance <= 100k" --basic-only
 ```
 
 ## Cached Part Inspection
 
 ```bash
 # Cache a part, then inspect it
-jlcpcb fetch C8287
-jlcpcb info C8287
+bomi fetch C8287
+bomi info C8287
 
 # Compare cached parts
-jlcpcb compare C8287 C25900
+bomi compare C8287 C25900
 
 # Force a refresh even if the part is recent
-jlcpcb fetch C8287 --force
+bomi fetch C8287 --force
 ```
 
 ## Datasheets
@@ -115,20 +115,20 @@ jlcpcb fetch C8287 --force
 ```bash
 # Analyze one cached datasheet with OpenRouter
 # Default prompt covers: key specs, pin descriptions, application circuit values, design notes
-jlcpcb fetch C8287
-jlcpcb analyze C8287
+bomi fetch C8287
+bomi analyze C8287
 
 # Pass --prompt only when you need something specific
-jlcpcb analyze C8287 --prompt "What is the enable pin threshold voltage?"
+bomi analyze C8287 --prompt "What is the enable pin threshold voltage?"
 
 # Use a specific model
-jlcpcb analyze C8287 --model "anthropic/claude-sonnet-4.6"
+bomi analyze C8287 --model "anthropic/claude-sonnet-4.6"
 
 # Download PDF only
-jlcpcb datasheet C8287 --pdf -o docs/datasheets/
+bomi datasheet C8287 --pdf -o docs/datasheets/
 
 # Download PDF and generate a markdown summary (useful as agent context)
-jlcpcb datasheet C8287 --pdf --summary -o docs/datasheets/
+bomi datasheet C8287 --pdf --summary -o docs/datasheets/
 ```
 
 ## Project Workflow
@@ -138,47 +138,47 @@ jlcpcb datasheet C8287 --pdf --summary -o docs/datasheets/
 ```bash
 mkdir my-board && cd my-board
 git init
-jlcpcb init --name "my-board" --description "Motor driver board"
+bomi init --name "my-board" --description "Motor driver board"
 ```
 
 ### Research and select components
 
 ```bash
 # Research phase
-jlcpcb search "100nF 0402 X7R"
-jlcpcb fetch C1525
-jlcpcb info C1525
+bomi search "100nF 0402 X7R"
+bomi fetch C1525
+bomi info C1525
 
 # Add BOM entries (select fetches automatically if not already cached)
-jlcpcb select C1525 --ref C1 --qty 1 --notes "Bypass cap"
-jlcpcb select C1525 --ref C2 --qty 1 --notes "Bypass cap"
-jlcpcb select C347356 --ref U2 --qty 1 --notes "LED driver, constant current"
+bomi select C1525 --ref C1 --qty 1 --notes "Bypass cap"
+bomi select C1525 --ref C2 --qty 1 --notes "Bypass cap"
+bomi select C347356 --ref U2 --qty 1 --notes "LED driver, constant current"
 ```
 
 ### BOM review
 
 ```bash
-jlcpcb bom
-jlcpcb bom --check
-jlcpcb bom --format csv
-jlcpcb bom --format markdown
-jlcpcb status
+bomi bom
+bomi bom --check
+bomi bom --format csv
+bomi bom --format markdown
+bomi status
 ```
 
 ### Work from outside the project directory
 
 ```bash
 # Via CLI flag
-jlcpcb --project ~/Projects/my-board bom
+bomi --project ~/Projects/my-board bom
 
 # Via environment variable
-export JLCPCB_PROJECT=~/Projects/my-board
-jlcpcb status
+export BOMI_PROJECT=~/Projects/my-board
+bomi status
 ```
 
 ## Database Commands
 
 ```bash
-jlcpcb db stats
-jlcpcb db clear
+bomi db stats
+bomi db clear
 ```

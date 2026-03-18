@@ -2,7 +2,7 @@
 
 import pytest
 
-from jlcpcb_tool.units import parse_filter_expr, parse_value
+from bomi.units import parse_filter_expr, parse_value
 
 
 class TestParseValue:

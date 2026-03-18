@@ -3,7 +3,7 @@
 import pytest
 import yaml
 
-from jlcpcb_tool.project import (
+from bomi.project import (
     Project,
     Selection,
     add_selection,
@@ -19,7 +19,7 @@ from jlcpcb_tool.project import (
 class TestInitProject:
     def test_creates_project_yaml(self, tmp_path):
         project = init_project(tmp_path, name="test-board", description="A test")
-        yaml_path = tmp_path / ".jlcpcb" / "project.yaml"
+        yaml_path = tmp_path / ".bomi" / "project.yaml"
         assert yaml_path.exists()
         data = yaml.safe_load(yaml_path.read_text())
         assert data["name"] == "test-board"
@@ -188,7 +188,7 @@ class TestRelabelSelection:
 class TestResolveBom:
     def test_resolve_tbd(self, tmp_path, monkeypatch):
         """TBD parts get a warning."""
-        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: tmp_path / "parts.db")
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: tmp_path / "parts.db")
         project = init_project(tmp_path, name="test")
         project.selections.append(Selection(ref="R1", lcsc=None))
         save_project(project)
@@ -199,7 +199,7 @@ class TestResolveBom:
 
     def test_resolve_uncached(self, tmp_path, monkeypatch):
         """Parts not in DB get a warning."""
-        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: tmp_path / "parts.db")
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: tmp_path / "parts.db")
         project = init_project(tmp_path, name="test")
         add_selection(project, lcsc="C8287", ref="R1")
 
@@ -209,9 +209,9 @@ class TestResolveBom:
     def test_resolve_cached(self, tmp_path, monkeypatch, sample_part):
         """Cached parts are included in BOM."""
         db_path = tmp_path / "parts.db"
-        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: db_path)
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: db_path)
 
-        from jlcpcb_tool.db import Database
+        from bomi.db import Database
         db = Database(db_path)
         db.upsert_part(sample_part)
         db.close()

@@ -44,10 +44,10 @@ PART_INFO = {
 
 def get_api_key():
     """Load OpenRouter API key from jlcpcb config."""
-    key = os.environ.get("JLCPCB_OPENROUTER_API_KEY")
+    key = os.environ.get("BOMI_OPENROUTER_API_KEY")
     if key:
         return key
-    config_path = Path.home() / "Library" / "Application Support" / "jlcpcb" / "config.yaml"
+    config_path = Path.home() / "Library" / "Application Support" / "bomi" / "config.yaml"
     if config_path.exists():
         for line in config_path.read_text().splitlines():
             if "openrouter_api_key" in line:

@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agent Guide — jlcpcb-tool</title>
-  <meta name="description" content="A short structured reference for AI agents using jlcpcb-tool.">
+  <title>Agent Guide — bomi</title>
+  <meta name="description" content="A short structured reference for AI agents using bomi.">
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
 <nav>
-  <a class="nav-logo" href="index.html">jlcpcb<span>-tool</span></a>
+  <a class="nav-logo" href="index.html">bomi</a>
   <ul class="nav-links">
     <li><a href="vibe.html">Getting Started</a></li>
     <li><a href="guide.html" class="active">Agent Guide</a></li>
     <li><a href="examples.html">Examples</a></li>
   </ul>
-  <a class="nav-github" href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+  <a class="nav-github" href="https://github.com/somebox/bomi" target="_blank">GitHub ↗</a>
 </nav>
 
 <main>
@@ -36,14 +36,14 @@
 
     <div class="doc-content">
       <div class="section-label">Agent Guide</div>
-      <h1 style="font-size:1.6rem;margin-bottom:0.5rem">jlcpcb-tool — Agent Reference</h1>
+      <h1 style="font-size:1.6rem;margin-bottom:0.5rem">bomi — Agent Reference</h1>
       <p style="color:var(--text-dim);font-size:0.875rem;margin-bottom:2rem">
         This guide is designed to be read at the start of a Claude Code, Copilot, or Cursor session.
-        It gives the agent everything it needs to use <code>jlcpcb</code> correctly.
+        It gives the agent everything it needs to use <code>bomi</code> correctly.
       </p>
 
       <div class="callout">
-        <strong>For AI agents:</strong> Read this page in full before using <code>jlcpcb</code> commands.
+        <strong>For AI agents:</strong> Read this page in full before using <code>bomi</code> commands.
         Pay attention to the caching rules under Quick Rules and the output shape differences under Output Format.
       </div>
 
@@ -52,7 +52,7 @@
         <li><code>search</code> is live and also updates the local cache.</li>
         <li><code>query</code> is local-cache only — fast and offline.</li>
         <li><code>info</code>, <code>compare</code>, <code>analyze</code>, and <code>datasheet</code> need the part in the local cache first — run <code>fetch</code> if needed.</li>
-        <li><code>select</code>, <code>bom</code>, <code>status</code>, <code>deselect</code>, and <code>relabel</code> need project context (a <code>.jlcpcb/project.yaml</code> in the tree).</li>
+        <li><code>select</code>, <code>bom</code>, <code>status</code>, <code>deselect</code>, and <code>relabel</code> need project context (a <code>.bomi/project.yaml</code> in the tree).</li>
         <li><code>status</code> is text-only. <code>bom --format json</code> uses a different JSON shape than other commands — see Output Format.</li>
       </ul>
 
@@ -62,37 +62,37 @@
           <tr><th>Command</th><th>Purpose</th></tr>
         </thead>
         <tbody>
-          <tr><td>jlcpcb search "keyword"</td><td>Search the live JLCPCB catalog</td></tr>
-          <tr><td>jlcpcb fetch CXXXXX</td><td>Cache a specific part by LCSC code</td></tr>
-          <tr><td>jlcpcb query "keyword"</td><td>Search the local cache only</td></tr>
-          <tr><td>jlcpcb info CXXXXX</td><td>Show full details for one cached part</td></tr>
-          <tr><td>jlcpcb compare CXXXXX CYYYYY</td><td>Compare cached parts side-by-side</td></tr>
-          <tr><td>jlcpcb analyze CXXXXX</td><td>Analyze a cached datasheet with OpenRouter</td></tr>
-          <tr><td>jlcpcb datasheet CXXXXX --pdf --summary -o dir/</td><td>Download PDF and write a markdown summary</td></tr>
-          <tr><td>jlcpcb init</td><td>Create .jlcpcb/project.yaml in current directory</td></tr>
-          <tr><td>jlcpcb select CXXXXX --ref U1</td><td>Add a BOM entry (fetches if not cached)</td></tr>
-          <tr><td>jlcpcb deselect U1</td><td>Remove a BOM entry by reference</td></tr>
-          <tr><td>jlcpcb relabel R1 R3</td><td>Rename a BOM reference</td></tr>
-          <tr><td>jlcpcb bom</td><td>Show the full BOM with pricing and stock</td></tr>
-          <tr><td>jlcpcb bom --check</td><td>Refresh BOM stock and pricing from live catalog</td></tr>
-          <tr><td>jlcpcb bom --format json</td><td>Export BOM as JSON</td></tr>
-          <tr><td>jlcpcb status</td><td>Show project summary with cost estimate and warnings</td></tr>
-          <tr><td>jlcpcb db stats</td><td>Show local cache statistics</td></tr>
+          <tr><td>bomi search "keyword"</td><td>Search the live JLCPCB catalog</td></tr>
+          <tr><td>bomi fetch CXXXXX</td><td>Cache a specific part by LCSC code</td></tr>
+          <tr><td>bomi query "keyword"</td><td>Search the local cache only</td></tr>
+          <tr><td>bomi info CXXXXX</td><td>Show full details for one cached part</td></tr>
+          <tr><td>bomi compare CXXXXX CYYYYY</td><td>Compare cached parts side-by-side</td></tr>
+          <tr><td>bomi analyze CXXXXX</td><td>Analyze a cached datasheet with OpenRouter</td></tr>
+          <tr><td>bomi datasheet CXXXXX --pdf --summary -o dir/</td><td>Download PDF and write a markdown summary</td></tr>
+          <tr><td>bomi init</td><td>Create .bomi/project.yaml in current directory</td></tr>
+          <tr><td>bomi select CXXXXX --ref U1</td><td>Add a BOM entry (fetches if not cached)</td></tr>
+          <tr><td>bomi deselect U1</td><td>Remove a BOM entry by reference</td></tr>
+          <tr><td>bomi relabel R1 R3</td><td>Rename a BOM reference</td></tr>
+          <tr><td>bomi bom</td><td>Show the full BOM with pricing and stock</td></tr>
+          <tr><td>bomi bom --check</td><td>Refresh BOM stock and pricing from live catalog</td></tr>
+          <tr><td>bomi bom --format json</td><td>Export BOM as JSON</td></tr>
+          <tr><td>bomi status</td><td>Show project summary with cost estimate and warnings</td></tr>
+          <tr><td>bomi db stats</td><td>Show local cache statistics</td></tr>
         </tbody>
       </table>
 
       <h2 id="flows">Common flows</h2>
 
       <h3>Search and inspect</h3>
-      <pre>jlcpcb search "buck converter 3.3V"
-jlcpcb fetch C9865
-jlcpcb info C9865
-jlcpcb compare C9865 C28023</pre>
+      <pre>bomi search "buck converter 3.3V"
+bomi fetch C9865
+bomi info C9865
+bomi compare C9865 C28023</pre>
 
       <h3>Filter by attributes</h3>
-      <pre>jlcpcb search "0402 resistor" --attr "Resistance >= 10k"
-jlcpcb search "MOSFET SOT-23" --attr "Drain Source Voltage (Vdss) >= 30"
-jlcpcb query --basic-only --attr "Capacitance <= 100n"</pre>
+      <pre>bomi search "0402 resistor" --attr "Resistance >= 10k"
+bomi search "MOSFET SOT-23" --attr "Drain Source Voltage (Vdss) >= 30"
+bomi query --basic-only --attr "Capacitance <= 100n"</pre>
       <p>
         Attribute operators: <code>&gt;=</code> <code>&lt;=</code> <code>&gt;</code> <code>&lt;</code> <code>=</code> <code>!=</code>.
         Values support SI prefixes: <code>10k</code>, <code>100n</code>, <code>4.7u</code>.
@@ -101,20 +101,20 @@ jlcpcb query --basic-only --attr "Capacitance <= 100n"</pre>
 
       <h3>Work in a project</h3>
       <pre>cd my-project
-jlcpcb init --name "My Board" --description "Description here"
+bomi init --name "My Board" --description "Description here"
 
-jlcpcb select C9865 --ref U3 --qty 1 --notes "3.3V buck"
-jlcpcb select C8678 --ref D3 --qty 1 --notes "catch diode"
+bomi select C9865 --ref U3 --qty 1 --notes "3.3V buck"
+bomi select C8678 --ref D3 --qty 1 --notes "catch diode"
 
-jlcpcb bom
-jlcpcb bom --check
-jlcpcb status</pre>
+bomi bom
+bomi bom --check
+bomi status</pre>
 
       <h3>Work with datasheets</h3>
-      <pre>jlcpcb fetch C9865
-jlcpcb analyze C9865
-jlcpcb analyze C9865 --prompt "What is the enable pin threshold voltage?"
-jlcpcb datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
+      <pre>bomi fetch C9865
+bomi analyze C9865
+bomi analyze C9865 --prompt "What is the enable pin threshold voltage?"
+bomi datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
       <p>
         The <code>analyze</code> command sends the datasheet PDF to OpenRouter and returns structured markdown.
         Requires an OpenRouter API key in config. The <code>datasheet</code> command writes files to disk:
@@ -141,15 +141,15 @@ jlcpcb datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
       <p>Project context is resolved in this order:</p>
       <ol>
         <li><code>--project &lt;path&gt;</code></li>
-        <li><code>JLCPCB_PROJECT</code> environment variable</li>
-        <li>Walk up from the current directory until <code>.jlcpcb/project.yaml</code> is found</li>
+        <li><code>BOMI_PROJECT</code> environment variable</li>
+        <li>Walk up from the current directory until <code>.bomi/project.yaml</code> is found</li>
       </ol>
       <p>
-        <code>jlcpcb init</code> also appends datasheet PDF ignore rules to <code>.gitignore</code>.
+        <code>bomi init</code> also appends datasheet PDF ignore rules to <code>.gitignore</code>.
       </p>
       <p>
         If running from outside the project tree (e.g. via <code>uv run --directory</code>),
-        set <code>JLCPCB_PROJECT</code> to avoid needing <code>--project</code> on every command.
+        set <code>BOMI_PROJECT</code> to avoid needing <code>--project</code> on every command.
       </p>
 
       <h2 id="defaults">Good defaults</h2>
@@ -159,7 +159,7 @@ jlcpcb datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
         <li>Use <code>bom --check</code> before ordering to refresh stock and pricing from the live catalog.</li>
         <li>Use one reference per BOM line when possible (<code>R1</code>, <code>U2</code>, etc.).</li>
         <li>Add <code>--notes</code> to selections to record why a part was chosen.</li>
-        <li>Commit <code>.jlcpcb/project.yaml</code> with every BOM change so decisions are tracked in git.</li>
+        <li>Commit <code>.bomi/project.yaml</code> with every BOM change so decisions are tracked in git.</li>
       </ul>
     </div>
 
@@ -172,9 +172,9 @@ jlcpcb datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
     <a href="vibe.html">Getting Started</a>
     <a href="guide.html">Agent Guide</a>
     <a href="examples.html">Examples</a>
-    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+    <a href="https://github.com/somebox/bomi" target="_blank">GitHub ↗</a>
   </div>
-  <div>jlcpcb-tool v__BUILD_VERSION__ &nbsp;·&nbsp; <a href="https://swiss.social/@somebox" target="_blank">Jeremy Seitz</a> &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
+  <div>bomi v__BUILD_VERSION__ &nbsp;·&nbsp; <a href="https://swiss.social/@somebox" target="_blank">Jeremy Seitz</a> &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
 </footer>
 
 </body>

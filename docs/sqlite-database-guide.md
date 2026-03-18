@@ -1,19 +1,19 @@
 # Local SQLite Database Guide
 
-This document describes the `parts.db` database used by `jlcpcb-tool`. It is the shared local cache for fetched parts, prices, attributes, and saved datasheet analyses.
+This document describes the `parts.db` database used by `bomi`. It is the shared local cache for fetched parts, prices, attributes, and saved datasheet analyses.
 
 ## Location
 
 The database is created automatically in the global data directory:
 
-- macOS: `~/Library/Application Support/jlcpcb/parts.db`
-- Linux: `~/.local/share/jlcpcb/parts.db`
+- macOS: `~/Library/Application Support/bomi/parts.db`
+- Linux: `~/.local/share/bomi/parts.db`
 
 The cache is shared across all projects.
 
 ## Schema Overview
 
-The current schema lives in `src/jlcpcb_tool/db.py`.
+The current schema lives in `src/bomi/db.py`.
 
 ### Table: `parts`
 

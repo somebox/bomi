@@ -6,9 +6,9 @@ from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 import requests
 
-from jlcpcb_tool.cli import cli
-from jlcpcb_tool.db import Database
-from jlcpcb_tool.models import Attribute, Part, PriceTier
+from bomi.cli import cli
+from bomi.db import Database
+from bomi.models import Attribute, Part, PriceTier
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def mock_db(tmp_path, sample_part):
 @pytest.fixture
 def patched_db(mock_db):
     """Patch get_db to return our test database."""
-    with patch("jlcpcb_tool.cli.get_db", return_value=mock_db):
+    with patch("bomi.cli.get_db", return_value=mock_db):
         yield mock_db
 
 
@@ -134,12 +134,12 @@ class TestInit:
         result = runner.invoke(cli, ["init", "--name", "test-board"])
         assert result.exit_code == 0
         assert "Created" in result.output
-        assert (tmp_path / ".jlcpcb" / "project.yaml").exists()
+        assert (tmp_path / ".bomi" / "project.yaml").exists()
 
     def test_init_already_exists(self, runner, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        (tmp_path / ".jlcpcb").mkdir()
-        (tmp_path / ".jlcpcb" / "project.yaml").write_text("name: existing\n")
+        (tmp_path / ".bomi").mkdir()
+        (tmp_path / ".bomi" / "project.yaml").write_text("name: existing\n")
         result = runner.invoke(cli, ["init", "--name", "test"])
         assert result.exit_code != 0
         assert "already exists" in result.output
@@ -150,7 +150,7 @@ class TestSelect:
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
         monkeypatch.setattr(
-            "jlcpcb_tool.project.get_db_path",
+            "bomi.project.get_db_path",
             lambda: patched_db.db_path,
         )
         result = runner.invoke(cli, ["select", "C8287", "--ref", "R1", "--qty", "2"])
@@ -159,7 +159,7 @@ class TestSelect:
 
     def test_select_no_project(self, runner, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        monkeypatch.delenv("JLCPCB_PROJECT", raising=False)
+        monkeypatch.delenv("BOMI_PROJECT", raising=False)
         result = runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
         assert result.exit_code != 0
         assert "No project" in result.output
@@ -167,7 +167,7 @@ class TestSelect:
     def test_select_range_quantity_mismatch(self, runner, patched_db, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
-        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
         result = runner.invoke(cli, ["select", "C8287", "--ref", "U2-U4", "--qty", "1"])
         assert result.exit_code != 0
         assert "must be 3" in result.output
@@ -175,8 +175,8 @@ class TestSelect:
     def test_select_overlapping_ref(self, runner, patched_db, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
-        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: patched_db.db_path)
-        monkeypatch.setattr("jlcpcb_tool.cli.get_db", lambda: Database(patched_db.db_path))
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.cli.get_db", lambda: Database(patched_db.db_path))
         runner.invoke(cli, ["select", "C8287", "--ref", "U2-U4", "--qty", "3"])
         result = runner.invoke(cli, ["select", "C8287", "--ref", "U3"])
         assert result.exit_code != 0
@@ -188,7 +188,7 @@ class TestDeselect:
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
         monkeypatch.setattr(
-            "jlcpcb_tool.project.get_db_path",
+            "bomi.project.get_db_path",
             lambda: patched_db.db_path,
         )
         runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
@@ -209,7 +209,7 @@ class TestRelabel:
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
         monkeypatch.setattr(
-            "jlcpcb_tool.project.get_db_path",
+            "bomi.project.get_db_path",
             lambda: patched_db.db_path,
         )
         runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
@@ -220,7 +220,7 @@ class TestRelabel:
     def test_relabel_range(self, runner, patched_db, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
-        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
         runner.invoke(cli, ["select", "C8287", "--ref", "U2-U4", "--qty", "3"])
         result = runner.invoke(cli, ["relabel", "U2-U4", "U5-U7"])
         assert result.exit_code == 0
@@ -232,7 +232,7 @@ class TestBom:
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
         monkeypatch.setattr(
-            "jlcpcb_tool.project.get_db_path",
+            "bomi.project.get_db_path",
             lambda: patched_db.db_path,
         )
         runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
@@ -244,7 +244,7 @@ class TestBom:
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
         monkeypatch.setattr(
-            "jlcpcb_tool.project.get_db_path",
+            "bomi.project.get_db_path",
             lambda: patched_db.db_path,
         )
         runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
@@ -258,7 +258,7 @@ class TestBom:
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
         monkeypatch.setattr(
-            "jlcpcb_tool.project.get_db_path",
+            "bomi.project.get_db_path",
             lambda: patched_db.db_path,
         )
         runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
@@ -269,14 +269,14 @@ class TestBom:
 
     def test_bom_no_project(self, runner, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        monkeypatch.delenv("JLCPCB_PROJECT", raising=False)
+        monkeypatch.delenv("BOMI_PROJECT", raising=False)
         result = runner.invoke(cli, ["bom"])
         assert result.exit_code != 0
 
     def test_bom_markdown_has_anchor_links(self, runner, patched_db, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
-        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
         runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
         result = runner.invoke(cli, ["bom", "--format", "markdown"])
         assert result.exit_code == 0
@@ -289,7 +289,7 @@ class TestStatus:
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
         monkeypatch.setattr(
-            "jlcpcb_tool.project.get_db_path",
+            "bomi.project.get_db_path",
             lambda: patched_db.db_path,
         )
         runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
@@ -301,7 +301,7 @@ class TestStatus:
 
 
 class TestSearch:
-    @patch("jlcpcb_tool.cli.JLCPCBClient")
+    @patch("bomi.cli.JLCPCBClient")
     def test_search_calls_api(self, mock_client_cls, runner, patched_db,
                                sample_search_response):
         mock_client = MagicMock()
@@ -313,7 +313,7 @@ class TestSearch:
         mock_client.search.assert_called_once()
         assert "C8287" in result.output
 
-    @patch("jlcpcb_tool.cli.JLCPCBClient")
+    @patch("bomi.cli.JLCPCBClient")
     def test_search_json(self, mock_client_cls, runner, patched_db,
                           sample_search_response):
         mock_client = MagicMock()
@@ -325,14 +325,14 @@ class TestSearch:
         data = json.loads(result.output)
         assert data["status"] == "ok"
 
-    @patch("jlcpcb_tool.cli.JLCPCBClient")
+    @patch("bomi.cli.JLCPCBClient")
     def test_search_invalid_attr_fails_before_api(self, mock_client_cls, runner, patched_db):
         result = runner.invoke(cli, ["search", "10k", "--attr", "Resistance maybe 10k"])
         assert result.exit_code != 0
         assert "Invalid attribute filter" in result.output
         mock_client_cls.assert_not_called()
 
-    @patch("jlcpcb_tool.cli.JLCPCBClient")
+    @patch("bomi.cli.JLCPCBClient")
     def test_search_api_error_translated(self, mock_client_cls, runner, patched_db):
         mock_client = MagicMock()
         mock_client.search.side_effect = requests.RequestException("boom")
@@ -343,7 +343,7 @@ class TestSearch:
 
 
 class TestFetch:
-    @patch("jlcpcb_tool.cli.JLCPCBClient")
+    @patch("bomi.cli.JLCPCBClient")
     def test_fetch_api_error_translated(self, mock_client_cls, runner, patched_db):
         mock_client = MagicMock()
         mock_client.search.side_effect = requests.RequestException("boom")

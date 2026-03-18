@@ -3,7 +3,7 @@
 import json
 import pytest
 
-from jlcpcb_tool.normalize import normalize_search_response, get_search_metadata
+from bomi.normalize import normalize_search_response, get_search_metadata
 
 
 class TestNormalizeSearchResponse:

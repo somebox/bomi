@@ -1,10 +1,16 @@
-# jlcpcb-tool
+# bomi
 
-[![CI](https://github.com/somebox/jlcpcb-tool/actions/workflows/ci.yml/badge.svg)](https://github.com/somebox/jlcpcb-tool/actions/workflows/ci.yml)
+[![CI](https://github.com/somebox/bomi/actions/workflows/ci.yml/badge.svg)](https://github.com/somebox/bomi/actions/workflows/ci.yml)
 
-`jlcpcb-tool` is a Python CLI for researching JLCPCB/LCSC parts and keeping a per-project BOM in version control. It caches part data in a shared local SQLite database and stores project selections in `.jlcpcb/project.yaml`. It is designed to be driven by an AI agent (Claude Code, Cursor, GitHub Copilot, etc.) as part of a circuit design workflow.
+<img src="site/assets/logo.png" alt="bomi logo" width="120" align="right">
 
-**[somebox.github.io/jlcpcb-tool](https://somebox.github.io/jlcpcb-tool)** — demos, examples, and getting-started guide
+**Bill of Materials Integration** — applying DevOps-style tooling to electronics projects.
+
+`bomi` is a Python CLI for researching JLCPCB/LCSC parts and keeping a per-project BOM in version control. It caches part data in a shared local SQLite database and stores project selections in `.bomi/project.yaml`.
+
+AI agents (Claude Code, Cursor, GitHub Copilot, etc.) can drive it directly — searching the catalog, comparing parts, updating the BOM, and pulling datasheet analysis without touching a browser. After a lot of iteration and many PCBs made, bomi proved to be a significant time saver: easier to track decisions, catch stock issues early, and keep BOM costs under control across revisions.
+
+**[somebox.github.io/bomi](https://somebox.github.io/bomi)** — demos, examples, and getting-started guide
 
 ## Requirements
 
@@ -16,28 +22,28 @@
 ## Install
 
 ```bash
-git clone https://github.com/somebox/jlcpcb-tool.git
-cd jlcpcb-tool
+git clone https://github.com/somebox/bomi.git
+cd bomi
 
-# Install the CLI globally as `jlcpcb`
+# Install the CLI globally as `bomi`
 uv tool install -e .
 
 # Or, to work on the repo
 uv sync
 ```
 
-> **Note for asdf users:** `uv tool install` installs into uv's own tool environment, which may not be on `PATH` under all asdf-managed Python shims. If you get "No preset version installed for command jlcpcb", run directly with:
+> **Note for asdf users:** `uv tool install` installs into uv's own tool environment, which may not be on `PATH` under all asdf-managed Python shims. If you get "No preset version installed for command bomi", run directly with:
 > ```bash
-> uv run --directory /path/to/jlcpcb-tool jlcpcb <command>
+> uv run --directory /path/to/bomi bomi <command>
 > ```
-> Set `JLCPCB_PROJECT` (see [Project Resolution](#project-resolution)) to avoid needing `--project` on every command.
+> Set `BOMI_PROJECT` (see [Project Resolution](#project-resolution)) to avoid needing `--project` on every command.
 
 ## Configuration
 
 Global config lives here:
 
-- macOS: `~/Library/Application Support/jlcpcb/config.yaml`
-- Linux: `~/.local/share/jlcpcb/config.yaml`
+- macOS: `~/Library/Application Support/bomi/config.yaml`
+- Linux: `~/.local/share/bomi/config.yaml`
 
 Minimal config (see `secrets.yaml.example` in the repo):
 
@@ -48,7 +54,7 @@ openrouter_api_key: sk-or-v1-...
 Environment variables override config values:
 
 ```bash
-export JLCPCB_OPENROUTER_API_KEY=sk-or-v1-...
+export BOMI_OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
 The shared cache database is stored alongside the config as `parts.db`.
@@ -57,54 +63,54 @@ The shared cache database is stored alongside the config as `parts.db`.
 
 ```bash
 # 1. Search the live catalog
-jlcpcb search "10k 0402 resistor"
+bomi search "10k 0402 resistor"
 
 # 2. Cache one or more exact parts
-jlcpcb fetch C8287 C25900
+bomi fetch C8287 C25900
 
 # 3. Query the local cache offline
-jlcpcb query --package 0402 --basic-only --attr "Resistance >= 10k"
+bomi query --package 0402 --basic-only --attr "Resistance >= 10k"
 
 # 4. Inspect or compare cached parts
-jlcpcb info C8287
-jlcpcb compare C8287 C25900
+bomi info C8287
+bomi compare C8287 C25900
 
 # 5. Analyze a cached part's datasheet with OpenRouter (default prompt covers key specs)
-jlcpcb analyze C8287
+bomi analyze C8287
 ```
 
-`info`, `compare`, `analyze`, and `datasheet` all work from the local cache. If a part is missing, run `jlcpcb fetch <code>` first.
+`info`, `compare`, `analyze`, and `datasheet` all work from the local cache. If a part is missing, run `bomi fetch <code>` first.
 
 ## Project Workflow
 
-Projects store their BOM in `.jlcpcb/project.yaml`, which is meant to be committed with the rest of the design files.
+Projects store their BOM in `.bomi/project.yaml`, which is meant to be committed with the rest of the design files.
 
 ```bash
 cd my-pcb-project
-jlcpcb init --name "my-board" --description "Motor driver board"
+bomi init --name "my-board" --description "Motor driver board"
 
 # Add parts to the BOM (fetches from catalog if not already cached)
-jlcpcb select C8287 --ref R1 --qty 2 --notes "10k pull-up"
-jlcpcb select C1525 --ref C1 --qty 1 --notes "100nF bypass"
-jlcpcb select C1525 --ref C2 --qty 1 --notes "100nF bypass"
+bomi select C8287 --ref R1 --qty 2 --notes "10k pull-up"
+bomi select C1525 --ref C1 --qty 1 --notes "100nF bypass"
+bomi select C1525 --ref C2 --qty 1 --notes "100nF bypass"
 
 # Review the BOM
-jlcpcb bom
-jlcpcb bom --format json
-jlcpcb bom --format csv
-jlcpcb bom --check
+bomi bom
+bomi bom --format json
+bomi bom --format csv
+bomi bom --check
 
 # Project summary
-jlcpcb status
+bomi status
 
 # Edit selections
-jlcpcb relabel R1 R3
-jlcpcb deselect C2
+bomi relabel R1 R3
+bomi deselect C2
 ```
 
-`jlcpcb init` currently:
+`bomi init` currently:
 
-- creates `.jlcpcb/project.yaml`
+- creates `.bomi/project.yaml`
 - appends datasheet PDF ignore rules to `.gitignore`
 
 ### Project Resolution
@@ -112,13 +118,13 @@ jlcpcb deselect C2
 Project context is resolved in this order:
 
 1. `--project <path>`
-2. `JLCPCB_PROJECT` env var
-3. walking up from the current directory to find `.jlcpcb/project.yaml`
+2. `BOMI_PROJECT` env var
+3. walking up from the current directory to find `.bomi/project.yaml`
 
-If you're running `jlcpcb` from outside the project directory (e.g. via `uv run --directory`), set `JLCPCB_PROJECT` so project commands work without `--project` on every call:
+If you're running `bomi` from outside the project directory (e.g. via `uv run --directory`), set `BOMI_PROJECT` so project commands work without `--project` on every call:
 
 ```bash
-export JLCPCB_PROJECT=/path/to/my-pcb-project
+export BOMI_PROJECT=/path/to/my-pcb-project
 ```
 
 ## Commands
@@ -141,7 +147,7 @@ export JLCPCB_PROJECT=/path/to/my-pcb-project
 
 | Command | Notes |
 |---------|-------|
-| `init` | Create `.jlcpcb/project.yaml` in the current directory |
+| `init` | Create `.bomi/project.yaml` in the current directory |
 | `select <code> --ref REF` | Add a BOM entry, fetching the part if needed |
 | `deselect <ref>` | Remove a BOM entry by reference |
 | `relabel <old> <new>` | Rename a BOM entry reference |
@@ -191,9 +197,9 @@ Supported operators: `>=`, `<=`, `>`, `<`, `=`, `!=`
 Examples:
 
 ```bash
-jlcpcb search "0402 resistor" --attr "Resistance >= 10k"
-jlcpcb query --attr "Capacitance <= 100n"
-jlcpcb search "RGB LED" --attr "Forward Current >= 100mA"
+bomi search "0402 resistor" --attr "Resistance >= 10k"
+bomi query --attr "Capacitance <= 100n"
+bomi search "RGB LED" --attr "Forward Current >= 100mA"
 ```
 
 Values support SI prefixes such as `10k`, `100n`, and `4.7u`.
@@ -202,15 +208,15 @@ Values support SI prefixes such as `10k`, `100n`, and `4.7u`.
 
 | What | Location |
 |------|----------|
-| Global config | `~/Library/Application Support/jlcpcb/config.yaml` on macOS, `~/.local/share/jlcpcb/config.yaml` on Linux |
+| Global config | `~/Library/Application Support/bomi/config.yaml` on macOS, `~/.local/share/bomi/config.yaml` on Linux |
 | Shared cache database | `parts.db` in the same global data directory |
-| Project BOM | `.jlcpcb/project.yaml` inside a PCB project |
+| Project BOM | `.bomi/project.yaml` inside a PCB project |
 | Optional project docs | `docs/` inside your project |
 
 ## Project Structure
 
 ```text
-src/jlcpcb_tool/
+src/bomi/
   api.py        HTTP client for JLCPCB search and detail endpoints
   analysis.py   datasheet download and OpenRouter analysis
   cli.py        Click command definitions and output orchestration
@@ -223,9 +229,9 @@ src/jlcpcb_tool/
 
 ## Documentation
 
-- `docs/jlcpcb-tool-guide.md`: short agent-oriented usage guide (also at [somebox.github.io/jlcpcb-tool/guide.html](https://somebox.github.io/jlcpcb-tool/guide.html))
+- `docs/bomi-guide.md`: short agent-oriented usage guide (also at [somebox.github.io/bomi/guide.html](https://somebox.github.io/bomi/guide.html))
 - `docs/examples.md`: command examples
-- `docs/jlcpcb-api-internals.md`: current API notes and implementation boundaries
+- `docs/bomi-api-internals.md`: current API notes and implementation boundaries
 - `docs/sqlite-database-guide.md`: local cache schema and query examples
 
 ## Development

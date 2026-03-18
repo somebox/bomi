@@ -1,9 +1,9 @@
 """Configuration loading and path management.
 
 Data layout:
-  Global:  ~/Library/Application Support/jlcpcb/ (macOS)
-           ~/.local/share/jlcpcb/ (Linux)
-  Project: .jlcpcb/project.yaml (in project dir)
+  Global:  ~/Library/Application Support/bomi/ (macOS)
+           ~/.local/share/bomi/ (Linux)
+  Project: .bomi/project.yaml (in project dir)
 """
 
 import os
@@ -14,12 +14,12 @@ import yaml
 
 
 def _data_dir() -> Path:
-    """Return OS-appropriate global data directory for jlcpcb."""
+    """Return OS-appropriate global data directory for bomi."""
     if sys.platform == "darwin":
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    return base / "jlcpcb"
+    return base / "bomi"
 
 
 def get_data_dir() -> Path:
@@ -49,7 +49,7 @@ def load_global_config() -> dict:
 
 def get_config(key: str, default=None):
     """Get a config value. Checks env vars first, then global config.yaml."""
-    env_key = f"JLCPCB_{key.upper()}"
+    env_key = f"BOMI_{key.upper()}"
     env_val = os.environ.get(env_key)
     if env_val is not None:
         return env_val
@@ -62,32 +62,32 @@ def get_secret(key: str) -> str | None:
 
 
 def find_project_dir(override: str | None = None) -> Path | None:
-    """Find project directory containing .jlcpcb/project.yaml.
+    """Find project directory containing .bomi/project.yaml.
 
     Resolution order:
       1. Explicit override (--project CLI option)
-      2. JLCPCB_PROJECT env var
-      3. Walk up from cwd looking for .jlcpcb/project.yaml
+      2. BOMI_PROJECT env var
+      3. Walk up from cwd looking for .bomi/project.yaml
     """
     # 1. Explicit override
     if override:
         p = Path(override)
-        if (p / ".jlcpcb" / "project.yaml").exists():
+        if (p / ".bomi" / "project.yaml").exists():
             return p
         return None
 
     # 2. Env var
-    env = os.environ.get("JLCPCB_PROJECT")
+    env = os.environ.get("BOMI_PROJECT")
     if env:
         p = Path(env)
-        if (p / ".jlcpcb" / "project.yaml").exists():
+        if (p / ".bomi" / "project.yaml").exists():
             return p
         return None
 
     # 3. Walk up from cwd
     path = Path.cwd()
     for parent in [path, *path.parents]:
-        if (parent / ".jlcpcb" / "project.yaml").exists():
+        if (parent / ".bomi" / "project.yaml").exists():
             return parent
 
     return None

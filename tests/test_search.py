@@ -2,8 +2,8 @@
 
 import pytest
 
-from jlcpcb_tool.models import Attribute, Part, PriceTier
-from jlcpcb_tool.search import search_local
+from bomi.models import Attribute, Part, PriceTier
+from bomi.search import search_local
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from jlcpcb_tool.api import JLCPCBClient, JLCPCB_SEARCH_URL, HEADERS
+from bomi.api import JLCPCBClient, JLCPCB_SEARCH_URL, HEADERS
 
 
 class TestJLCPCBClient:
@@ -19,7 +19,7 @@ class TestJLCPCBClient:
         # Actual HTTP tested via VCR or live
         assert callable(client.search)
 
-    @patch("jlcpcb_tool.api.requests.Session.post")
+    @patch("bomi.api.requests.Session.post")
     def test_search_response_shape(self, mock_post):
         """Search should return parsed JSON payload from requests."""
         mock_resp = MagicMock()

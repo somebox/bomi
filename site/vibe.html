@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Getting Started — jlcpcb-tool</title>
-  <meta name="description" content="How to set up a project and use an AI agent for component research and BOM management with jlcpcb-tool.">
+  <title>Getting Started — bomi</title>
+  <meta name="description" content="How to set up a project and use an AI agent for component research and BOM management with bomi.">
   <link rel="stylesheet" href="assets/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.css">
 </head>
 <body>
 
 <nav>
-  <a class="nav-logo" href="index.html">jlcpcb<span>-tool</span></a>
+  <a class="nav-logo" href="index.html">bomi</a>
   <ul class="nav-links">
     <li><a href="vibe.html" class="active">Getting Started</a></li>
     <li><a href="guide.html">Agent Guide</a></li>
     <li><a href="examples.html">Examples</a></li>
   </ul>
-  <a class="nav-github" href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+  <a class="nav-github" href="https://github.com/somebox/bomi" target="_blank">GitHub ↗</a>
 </nav>
 
 <main>
@@ -39,7 +39,7 @@
     <div>
       <h2>Agent BOM review</h2>
       <p>
-        The agent runs <code>jlcpcb</code> tool calls to check stock levels, finds
+        The agent runs <code>bomi</code> tool calls to check stock levels, finds
         a part that is out of stock, searches for a replacement with the same
         footprint, and proposes the swap — all from a single prompt.
       </p>
@@ -63,13 +63,13 @@
     <li>Optional: an <a href="https://openrouter.ai" target="_blank">OpenRouter</a> API key for datasheet analysis</li>
   </ul>
 
-  <h3 style="margin-top:1.75rem;margin-bottom:0.5rem">Install jlcpcb-tool</h3>
-  <p style="font-size:0.875rem">Clone the repo and install the <code>jlcpcb</code> command globally with uv:</p>
-  <pre>git clone https://github.com/somebox/jlcpcb-tool
-cd jlcpcb-tool
+  <h3 style="margin-top:1.75rem;margin-bottom:0.5rem">Install bomi</h3>
+  <p style="font-size:0.875rem">Clone the repo and install the <code>bomi</code> command globally with uv:</p>
+  <pre>git clone https://github.com/somebox/bomi
+cd bomi
 uv tool install -e .</pre>
   <p style="font-size:0.8rem;color:var(--text-faint);margin-top:0.5rem">
-    Verify it works: <code>jlcpcb --help</code>
+    Verify it works: <code>bomi --help</code>
   </p>
 </section>
 
@@ -94,10 +94,10 @@ git init</pre>
       <div class="step-body">
         <h3>Initialize project metadata</h3>
         <p>
-          Creates <code>.jlcpcb/project.yaml</code> and appends datasheet PDF rules to <code>.gitignore</code>.
+          Creates <code>.bomi/project.yaml</code> and appends datasheet PDF rules to <code>.gitignore</code>.
           This file is the BOM source of truth — commit it with every change.
         </p>
-        <pre>jlcpcb init --name "my-board" --description "What this board does"</pre>
+        <pre>bomi init --name "my-board" --description "What this board does"</pre>
       </div>
     </div>
 
@@ -122,15 +122,15 @@ git init</pre>
         <p>The guide covers all commands, output formats, caching rules, and project context. Paste this to get started:</p>
         <div class="callout callout-blue" style="margin-top:0.75rem" id="agent-prompt-callout">
           <button class="copy-btn" onclick="copyPrompt(this)">Copy</button>
-          Read the jlcpcb-tool agent guide at:
+          Read the bomi agent guide at:
           <br>
-          <span class="guide-url">https://somebox.github.io/jlcpcb-tool/guide.html</span>
+          <span class="guide-url">https://somebox.github.io/bomi/guide.html</span>
           <br>
-          Then use <code>jlcpcb</code> to help me find parts for my PCB project. We need [describe what you're building].
+          Then use <code>bomi</code> to help me find parts for my PCB project. We need [describe what you're building].
         </div>
         <script>
           function copyPrompt(btn) {
-            const text = "Read the jlcpcb-tool agent guide at:\nhttps://somebox.github.io/jlcpcb-tool/guide.html\n\nThen use `jlcpcb` to help me find parts for my PCB project. We need [describe what you're building].";
+            const text = "Read the bomi agent guide at:\nhttps://somebox.github.io/bomi/guide.html\n\nThen use `bomi` to help me find parts for my PCB project. We need [describe what you're building].";
             navigator.clipboard.writeText(text).then(() => {
               btn.textContent = 'Copied!';
               btn.classList.add('copied');
@@ -140,7 +140,7 @@ git init</pre>
         </script>
         <p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.75rem">
           Alternatively, paste the raw markdown from
-          <a href="https://github.com/somebox/jlcpcb-tool/blob/master/docs/jlcpcb-tool-guide.md" target="_blank">docs/jlcpcb-tool-guide.md</a>
+          <a href="https://github.com/somebox/bomi/blob/master/docs/bomi-guide.md" target="_blank">docs/bomi-guide.md</a>
           directly into the agent's context.
         </p>
       </div>
@@ -153,7 +153,7 @@ git init</pre>
 <section>
   <div class="section-label">Working with your agent</div>
   <h2>What to ask</h2>
-  <p style="margin-bottom:2rem;max-width:560px">Once the agent has read the guide, it runs <code>jlcpcb</code> commands on your behalf. Click any example to see the command it maps to.</p>
+  <p style="margin-bottom:2rem;max-width:560px">Once the agent has read the guide, it runs <code>bomi</code> commands on your behalf. Click any example to see the command it maps to.</p>
 
   <div class="two-col">
     <div>
@@ -162,11 +162,11 @@ git init</pre>
         <div class="prompt-list">
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Find a 3.3V buck converter, under 3×3mm, basic parts only
-            <code class="prompt-cmd">jlcpcb search "3.3V buck converter" --basic-only --attr "Output Voltage:3.3V"</code>
+            <code class="prompt-cmd">bomi search "3.3V buck converter" --basic-only --attr "Output Voltage:3.3V"</code>
           </div>
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Find 100nF X7R capacitors, 0402, 10V minimum
-            <code class="prompt-cmd">jlcpcb search "100nF capacitor 0402" --attr "Voltage Rated:10V" --attr "Temperature Coefficient:X7R"</code>
+            <code class="prompt-cmd">bomi search "100nF capacitor 0402" --attr "Voltage Rated:10V" --attr "Temperature Coefficient:X7R"</code>
           </div>
         </div>
       </div>
@@ -175,11 +175,11 @@ git init</pre>
         <div class="prompt-list">
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Compare C8287 and C25900 for a 10k pull-up at 3.3V
-            <code class="prompt-cmd">jlcpcb compare C8287 C25900</code>
+            <code class="prompt-cmd">bomi compare C8287 C25900</code>
           </div>
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Is C347356 suitable for driving a 1W LED from USB-C?
-            <code class="prompt-cmd">jlcpcb analyze C347356</code>
+            <code class="prompt-cmd">bomi analyze C347356</code>
           </div>
         </div>
       </div>
@@ -190,12 +190,12 @@ git init</pre>
         <div class="prompt-list">
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Add C347356 as U1 — LED driver, PT4115
-            <code class="prompt-cmd">jlcpcb select C347356 --ref U1 --notes "PT4115 LED driver"</code>
+            <code class="prompt-cmd">bomi select C347356 --ref U1 --notes "PT4115 LED driver"</code>
           </div>
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Swap L1 to C167888 — same footprint, much better stock
-            <code class="prompt-cmd">jlcpcb deselect --ref L1
-jlcpcb select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k stock"</code>
+            <code class="prompt-cmd">bomi deselect --ref L1
+bomi select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k stock"</code>
           </div>
         </div>
       </div>
@@ -204,11 +204,11 @@ jlcpcb select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k
         <div class="prompt-list">
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Check all BOM stock levels, flag anything risky
-            <code class="prompt-cmd">jlcpcb bom --check</code>
+            <code class="prompt-cmd">bomi bom --check</code>
           </div>
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Export the BOM as CSV for the order sheet
-            <code class="prompt-cmd">jlcpcb bom --fmt csv</code>
+            <code class="prompt-cmd">bomi bom --fmt csv</code>
           </div>
         </div>
       </div>
@@ -239,7 +239,7 @@ jlcpcb select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k
     </div>
     <div class="card">
       <h3>Commit the BOM after each session</h3>
-      <p><code>.jlcpcb/project.yaml</code> is plain YAML — commit it after every meaningful change. You get a full history of part decisions: what you tried, what you replaced, and the reasoning behind each choice.</p>
+      <p><code>.bomi/project.yaml</code> is plain YAML — commit it after every meaningful change. You get a full history of part decisions: what you tried, what you replaced, and the reasoning behind each choice.</p>
     </div>
     <div class="card">
       <h3>Verify pins and parameters before routing</h3>
@@ -256,9 +256,9 @@ jlcpcb select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k
     <a href="vibe.html">Getting Started</a>
     <a href="guide.html">Agent Guide</a>
     <a href="examples.html">Examples</a>
-    <a href="https://github.com/somebox/jlcpcb-tool" target="_blank">GitHub ↗</a>
+    <a href="https://github.com/somebox/bomi" target="_blank">GitHub ↗</a>
   </div>
-  <div>jlcpcb-tool v__BUILD_VERSION__ &nbsp;·&nbsp; <a href="https://swiss.social/@somebox" target="_blank">Jeremy Seitz</a> &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
+  <div>bomi v__BUILD_VERSION__ &nbsp;·&nbsp; <a href="https://swiss.social/@somebox" target="_blank">Jeremy Seitz</a> &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.min.js"></script>

@@ -1,6 +1,6 @@
 # JLCPCB API Notes For This Repo
 
-This file documents the HTTP surfaces and external services used by the current `jlcpcb-tool` implementation. It is not a general survey of every upstream data source around JLCPCB or LCSC.
+This file documents the HTTP surfaces and external services used by the current `bomi` implementation. It is not a general survey of every upstream data source around JLCPCB or LCSC.
 
 ## What The Tool Uses Today
 
@@ -73,7 +73,7 @@ The implementation currently does not call a dedicated detail endpoint in normal
 
 ## OpenRouter Integration
 
-Datasheet analysis goes through OpenRouter in `src/jlcpcb_tool/analysis.py`.
+Datasheet analysis goes through OpenRouter in `src/bomi/analysis.py`.
 
 ### Endpoint
 
@@ -102,7 +102,7 @@ openrouter_api_key: sk-or-v1-...
 Environment override:
 
 ```bash
-export JLCPCB_OPENROUTER_API_KEY=sk-or-v1-...
+export BOMI_OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
 ### Large PDF handling

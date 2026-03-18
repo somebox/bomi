@@ -3,8 +3,8 @@
 import pytest
 from datetime import datetime, timezone
 
-from jlcpcb_tool.db import Database
-from jlcpcb_tool.models import Analysis, Attribute, Part, PriceTier
+from bomi.db import Database
+from bomi.models import Analysis, Attribute, Part, PriceTier
 
 
 class TestSchema:

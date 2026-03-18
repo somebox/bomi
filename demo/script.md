@@ -1,9 +1,9 @@
 
-# Demo Script: jlcpcb-tool USB Flashlight Project
+# Demo Script: bomi USB Flashlight Project
 
 ## Audience and Goal
 
-This demo shows how `jlcpcb-tool` is used to research parts, make BOM decisions, and keep project selections in version control.
+This demo shows how `bomi` is used to research parts, make BOM decisions, and keep project selections in version control.
 
 Project example: a USB-powered LED flashlight board with adjustable brightness controls.
 
@@ -20,7 +20,7 @@ Project example: a USB-powered LED flashlight board with adjustable brightness c
 
 Narration:
 
-"This walkthrough introduces jlcpcb-tool, a command-line workflow for researching JLCPCB parts and maintaining a project BOM as code. We will build a sample USB LED flashlight design and validate part decisions step by step."
+"This walkthrough introduces bomi, a command-line workflow for researching JLCPCB parts and maintaining a project BOM as code. We will build a sample USB LED flashlight design and validate part decisions step by step."
 
 ### Scene 1.2 - What We Will Build (no terminal)
 
@@ -46,19 +46,19 @@ Narration:
 
 "We begin with a normal project folder and initialize git so BOM changes can be reviewed and tracked."
 
-### Scene 2.2 - Initialize jlcpcb Project Metadata
+### Scene 2.2 - Initialize bomi Project Metadata
 
 Working directory: `~/Documents/projects/usb-led-flashlight`
 
 Commands:
 
 ```bash
-jlcpcb init --name "usb-led-flashlight" --description "USB-C powered LED flashlight with brightness buttons"
+bomi init --name "usb-led-flashlight" --description "USB-C powered LED flashlight with brightness buttons"
 ```
 
 Narration:
 
-"`jlcpcb init` creates `.jlcpcb/project.yaml`, which becomes the source of truth for part selections."
+"`bomi init` creates `.bomi/project.yaml`, which becomes the source of truth for part selections."
 
 ## Chapter 3 - Search and Inspect Parts
 
@@ -67,7 +67,7 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb search "USB Type-C connector SMD" --limit 5
+bomi search "USB Type-C connector SMD" --limit 5
 ```
 
 Narration:
@@ -79,7 +79,7 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb search "PT4115 LED driver" --limit 5
+bomi search "PT4115 LED driver" --limit 5
 ```
 
 Narration:
@@ -91,8 +91,8 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb fetch C347356
-jlcpcb info C347356
+bomi fetch C347356
+bomi info C347356
 ```
 
 Narration:
@@ -104,8 +104,8 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb search "Schottky diode SOD-123" --basic-only --limit 5
-jlcpcb search "inductor 47uH SMD" --limit 5
+bomi search "Schottky diode SOD-123" --basic-only --limit 5
+bomi search "inductor 47uH SMD" --limit 5
 ```
 
 Narration:
@@ -119,8 +119,8 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb fetch C145837
-jlcpcb compare C49023761 C145837
+bomi fetch C145837
+bomi compare C49023761 C145837
 ```
 
 Narration:
@@ -132,8 +132,8 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb info C49023761
-jlcpcb search "white LED 2835" --limit 10
+bomi info C49023761
+bomi search "white LED 2835" --limit 10
 ```
 
 Narration:
@@ -148,10 +148,10 @@ Commands:
 
 ```bash
 # (baseline parts are pre-seeded for demo pacing)
-jlcpcb select C456012 --ref J1 --qty 1 --notes "USB-C 6-pin power input"
-jlcpcb select C347356 --ref U1 --qty 1 --notes "PT4115 LED driver"
-jlcpcb select C3015100 --ref LED1 --qty 1 --notes "White high-power LED placeholder"
-jlcpcb select C49023761 --ref SW2 --qty 1 --notes "Brightness down button"
+bomi select C456012 --ref J1 --qty 1 --notes "USB-C 6-pin power input"
+bomi select C347356 --ref U1 --qty 1 --notes "PT4115 LED driver"
+bomi select C3015100 --ref LED1 --qty 1 --notes "White high-power LED placeholder"
+bomi select C49023761 --ref SW2 --qty 1 --notes "Brightness down button"
 ```
 
 Narration:
@@ -163,8 +163,8 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb bom
-jlcpcb status
+bomi bom
+bomi status
 ```
 
 Narration:
@@ -178,9 +178,9 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb relabel C1 C99
-jlcpcb relabel C2 C1
-jlcpcb relabel C99 C2
+bomi relabel C1 C99
+bomi relabel C2 C1
+bomi relabel C99 C2
 ```
 
 Narration:
@@ -192,9 +192,9 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb bom --check
-jlcpcb bom --format csv
-jlcpcb bom --format json
+bomi bom --check
+bomi bom --format csv
+bomi bom --format json
 ```
 
 Narration:
@@ -206,7 +206,7 @@ Narration:
 Commands:
 
 ```bash
-jlcpcb datasheet C347356 C456012 --pdf -o artifacts/datasheets
+bomi datasheet C347356 C456012 --pdf -o artifacts/datasheets
 ```
 
 Narration:
@@ -221,7 +221,7 @@ Commands:
 
 ```bash
 git status
-git add .jlcpcb/project.yaml artifacts
+git add .bomi/project.yaml artifacts
 git commit -m "Add initial flashlight BOM selections and validation artifacts"
 ```
 

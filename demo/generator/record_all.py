@@ -19,7 +19,7 @@ def main() -> int:
     parser.add_argument(
         "--repo-root",
         default=str(Path(__file__).resolve().parents[2]),
-        help="Path to jlcpcb-tool repository root",
+        help="Path to bomi repository root",
     )
     parser.add_argument(
         "--scenes",
@@ -63,7 +63,7 @@ def main() -> int:
     )
 
     if not args.skip_verify:
-        verify_dir = Path("/tmp/jlcpcb-cast-verify")
+        verify_dir = Path("/tmp/bomi-cast-verify")
         verify_dir.mkdir(parents=True, exist_ok=True)
         for cast_file in sorted(output_dir.glob("*.cast")):
             txt_out = verify_dir / f"{cast_file.stem}.txt"

@@ -2,7 +2,7 @@
 
 import pytest
 
-from jlcpcb_tool.refs import normalize_ref, parse_ref, ref_count, refs_overlap
+from bomi.refs import normalize_ref, parse_ref, ref_count, refs_overlap
 
 
 def test_parse_single_ref():

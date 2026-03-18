@@ -32,12 +32,12 @@ class Project:
     description: str = ""
     created: str = ""
     selections: list[Selection] = field(default_factory=list)
-    path: Path | None = None  # directory containing .jlcpcb/
+    path: Path | None = None  # directory containing .bomi/
 
     @property
     def project_yaml_path(self) -> Path | None:
         if self.path:
-            return self.path / ".jlcpcb" / "project.yaml"
+            return self.path / ".bomi" / "project.yaml"
         return None
 
 
@@ -81,8 +81,8 @@ def _ref_sort_key(ref: str) -> tuple:
 
 
 def init_project(directory: Path, name: str, description: str = "") -> Project:
-    """Create .jlcpcb/project.yaml for a project."""
-    jlcpcb_dir = directory / ".jlcpcb"
+    """Create .bomi/project.yaml for a project."""
+    jlcpcb_dir = directory / ".bomi"
     jlcpcb_dir.mkdir(parents=True, exist_ok=True)
 
     project = Project(
@@ -106,7 +106,7 @@ def init_project(directory: Path, name: str, description: str = "") -> Project:
         with open(gitignore_path, "a", encoding="utf-8") as f:
             f.write(
                 "\n# Datasheet PDFs are large — regenerate with: "
-                "jlcpcb datasheet CXXXXX --pdf -o docs/datasheets/\n"
+                "bomi datasheet CXXXXX --pdf -o docs/datasheets/\n"
                 "docs/datasheets/*.pdf\n"
                 "docs/datasheets/*.PDF\n"
             )
@@ -115,8 +115,8 @@ def init_project(directory: Path, name: str, description: str = "") -> Project:
 
 
 def load_project(project_dir: Path) -> Project:
-    """Load project from .jlcpcb/project.yaml."""
-    yaml_path = project_dir / ".jlcpcb" / "project.yaml"
+    """Load project from .bomi/project.yaml."""
+    yaml_path = project_dir / ".bomi" / "project.yaml"
     if not yaml_path.exists():
         raise FileNotFoundError(f"No project.yaml at {yaml_path}")
 
@@ -135,7 +135,7 @@ def load_project(project_dir: Path) -> Project:
 
 
 def save_project(project: Project):
-    """Write project to .jlcpcb/project.yaml."""
+    """Write project to .bomi/project.yaml."""
     if not project.path:
         raise ValueError("Project has no path set")
 
@@ -153,7 +153,7 @@ def save_project(project: Project):
     else:
         data["selections"] = []
 
-    yaml_path = project.path / ".jlcpcb" / "project.yaml"
+    yaml_path = project.path / ".bomi" / "project.yaml"
     yaml_path.parent.mkdir(parents=True, exist_ok=True)
     with open(yaml_path, "w") as f:
         yaml.dump(data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)

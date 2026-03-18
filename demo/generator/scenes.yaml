@@ -17,15 +17,15 @@ scenes:
       - cmd: "ls usb-led-flashlight"
         pause_after: 0.8
 
-  - id: scene-init-jlcpcb
-    title: "Initialize jlcpcb Project"
+  - id: scene-init-bomi
+    title: "Initialize bomi Project"
     cols: 75
     rows: 28
     working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
     commands:
-      - cmd: "jlcpcb init --name \"usb-led-flashlight\" --description \"USB-C powered LED flashlight with brightness buttons\""
+      - cmd: "bomi init --name \"usb-led-flashlight\" --description \"USB-C powered LED flashlight with brightness buttons\""
         pause_after: 1.0
-      - cmd: "ls -la .jlcpcb"
+      - cmd: "ls -la .bomi"
         pause_after: 0.8
 
   - id: scene-search-core-parts
@@ -35,9 +35,9 @@ scenes:
     working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
-      - cmd: "jlcpcb search \"USB Type-C connector SMD\" --limit 5"
+      - cmd: "bomi search \"USB Type-C connector SMD\" --limit 5"
         pause_after: 1.0
-      - cmd: "jlcpcb search \"PT4115 LED driver\" --limit 5"
+      - cmd: "bomi search \"PT4115 LED driver\" --limit 5"
         pause_after: 1.0
 
   - id: scene-inspect-driver
@@ -47,9 +47,9 @@ scenes:
     working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
-      - cmd: "jlcpcb fetch C347356"
+      - cmd: "bomi fetch C347356"
         pause_after: 0.8
-      - cmd: "jlcpcb info C347356"
+      - cmd: "bomi info C347356"
         pause_after: 1.2
 
   - id: scene-search-supporting-parts
@@ -59,11 +59,11 @@ scenes:
     working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
-      - cmd: "jlcpcb search \"Schottky diode SOD-123\" --basic-only --limit 5"
+      - cmd: "bomi search \"Schottky diode SOD-123\" --basic-only --limit 5"
         pause_after: 0.8
-      - cmd: "jlcpcb search \"inductor 47uH SMD\" --limit 5"
+      - cmd: "bomi search \"inductor 47uH SMD\" --limit 5"
         pause_after: 0.8
-      - cmd: "jlcpcb search \"SMD tactile switch\" --limit 5"
+      - cmd: "bomi search \"SMD tactile switch\" --limit 5"
         pause_after: 0.8
 
   - id: scene-compare-switch-options
@@ -73,9 +73,9 @@ scenes:
     working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
-      - cmd: "jlcpcb fetch C145837"
+      - cmd: "bomi fetch C145837"
         pause_after: 0.6
-      - cmd: "jlcpcb compare C49023761 C145837"
+      - cmd: "bomi compare C49023761 C145837"
         pause_after: 1.2
 
   - id: scene-select-bom-parts
@@ -86,31 +86,31 @@ scenes:
     line_delay: 0.03
     min_pause_after: 0.12
     commands:
-      - cmd: "jlcpcb select C8598 --ref D1 --qty 1 --notes \"Schottky catch diode\""
+      - cmd: "bomi select C8598 --ref D1 --qty 1 --notes \"Schottky catch diode\""
         hidden: true
         pause_after: 0.05
-      - cmd: "jlcpcb select C354577 --ref L1 --qty 1 --notes \"47uH buck inductor\""
+      - cmd: "bomi select C354577 --ref L1 --qty 1 --notes \"47uH buck inductor\""
         hidden: true
         pause_after: 0.05
-      - cmd: "jlcpcb select C17888 --ref R1 --qty 1 --notes \"Current set resistor placeholder\""
+      - cmd: "bomi select C17888 --ref R1 --qty 1 --notes \"Current set resistor placeholder\""
         hidden: true
         pause_after: 0.05
-      - cmd: "jlcpcb select C14663 --ref C1 --qty 1 --notes \"100nF input bypass\""
+      - cmd: "bomi select C14663 --ref C1 --qty 1 --notes \"100nF input bypass\""
         hidden: true
         pause_after: 0.05
-      - cmd: "jlcpcb select C13585 --ref C2 --qty 1 --notes \"10uF input bulk cap\""
+      - cmd: "bomi select C13585 --ref C2 --qty 1 --notes \"10uF input bulk cap\""
         hidden: true
         pause_after: 0.05
-      - cmd: "jlcpcb select C49023761 --ref SW1 --qty 1 --notes \"Brightness up button\""
+      - cmd: "bomi select C49023761 --ref SW1 --qty 1 --notes \"Brightness up button\""
         hidden: true
         pause_after: 0.05
-      - cmd: "jlcpcb select C456012 --ref J1 --qty 1 --notes \"USB-C 6-pin power input\""
+      - cmd: "bomi select C456012 --ref J1 --qty 1 --notes \"USB-C 6-pin power input\""
         pause_after: 0.15
-      - cmd: "jlcpcb select C347356 --ref U1 --qty 1 --notes \"PT4115 LED driver\""
+      - cmd: "bomi select C347356 --ref U1 --qty 1 --notes \"PT4115 LED driver\""
         pause_after: 0.15
-      - cmd: "jlcpcb select C3015100 --ref LED1 --qty 1 --notes \"White high-power LED placeholder\""
+      - cmd: "bomi select C3015100 --ref LED1 --qty 1 --notes \"White high-power LED placeholder\""
         pause_after: 0.15
-      - cmd: "jlcpcb select C49023761 --ref SW2 --qty 1 --notes \"Brightness down button\""
+      - cmd: "bomi select C49023761 --ref SW2 --qty 1 --notes \"Brightness down button\""
         pause_after: 0.25
 
   - id: scene-review-bom-status
@@ -120,9 +120,9 @@ scenes:
     working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
-      - cmd: "jlcpcb bom"
+      - cmd: "bomi bom"
         pause_after: 1.0
-      - cmd: "jlcpcb status"
+      - cmd: "bomi status"
         pause_after: 1.0
 
   - id: scene-refine-validate
@@ -132,17 +132,17 @@ scenes:
     working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
-      - cmd: "jlcpcb relabel C1 C99"
+      - cmd: "bomi relabel C1 C99"
         pause_after: 0.4
-      - cmd: "jlcpcb relabel C2 C1"
+      - cmd: "bomi relabel C2 C1"
         pause_after: 0.4
-      - cmd: "jlcpcb relabel C99 C2"
+      - cmd: "bomi relabel C99 C2"
         pause_after: 0.4
-      - cmd: "jlcpcb bom --check"
+      - cmd: "bomi bom --check"
         pause_after: 0.8
-      - cmd: "jlcpcb bom --format csv"
+      - cmd: "bomi bom --format csv"
         pause_after: 0.4
-      - cmd: "jlcpcb bom --format json"
+      - cmd: "bomi bom --format json"
         pause_after: 0.8
 
   - id: scene-artifacts-and-git
@@ -154,7 +154,7 @@ scenes:
     commands:
       - cmd: "mkdir -p artifacts/datasheets"
         pause_after: 0.2
-      - cmd: "jlcpcb datasheet C347356 C456012 --pdf -o artifacts/datasheets"
+      - cmd: "bomi datasheet C347356 C456012 --pdf -o artifacts/datasheets"
         pause_after: 0.8
       - cmd: "git status --short"
         pause_after: 0.8
