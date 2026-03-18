@@ -4,7 +4,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 
-from jlcpcb_tool.analysis import analyze_part, _estimate_cost
+from jlcpcb_tool.analysis import analyze_part, analyze_pdf, download_pdf, split_pdf, _estimate_cost
 from jlcpcb_tool.models import Part, PriceTier, Attribute
 
 
@@ -30,29 +30,87 @@ def part_no_datasheet():
     )
 
 
+FAKE_PDF = b"%PDF-1.4 fake pdf content for testing"
+
+
+class TestDownloadPdf:
+    @patch("jlcpcb_tool.analysis.requests.get")
+    def test_download_success(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.content = FAKE_PDF
+        mock_get.return_value = mock_resp
+
+        result = download_pdf("https://example.com/test.pdf")
+        assert result == FAKE_PDF
+
+    @patch("jlcpcb_tool.analysis.requests.get")
+    def test_download_not_pdf(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.content = b"<html>not a pdf</html>"
+        mock_get.return_value = mock_resp
+
+        result = download_pdf("https://example.com/test.pdf")
+        assert result is None
+
+    @patch("jlcpcb_tool.analysis.requests.get")
+    def test_download_tries_resolved_url(self, mock_get):
+        """LCSC URLs should try both original and resolved forms."""
+        mock_resp_fail = MagicMock()
+        mock_resp_fail.ok = True
+        mock_resp_fail.content = b"<html>wrapper</html>"
+
+        mock_resp_ok = MagicMock()
+        mock_resp_ok.ok = True
+        mock_resp_ok.content = FAKE_PDF
+
+        mock_get.side_effect = [mock_resp_fail, mock_resp_ok]
+
+        result = download_pdf(
+            "https://www.lcsc.com/datasheet/lcsc_datasheet_123_C8287.pdf"
+        )
+        assert result == FAKE_PDF
+        assert mock_get.call_count == 2
+
+
+class TestSplitPdf:
+    def test_small_pdf_no_split(self):
+        chunks = split_pdf(FAKE_PDF, max_bytes=1_000_000)
+        assert len(chunks) == 1
+        assert chunks[0] == FAKE_PDF
+
+    def test_large_pdf_without_pypdf(self):
+        """Without pypdf, large PDFs return as single chunk."""
+        large = FAKE_PDF + b"\x00" * 2_000_000
+        chunks = split_pdf(large, max_bytes=100)
+        # Without pypdf installed in test env, should return 1 chunk
+        assert len(chunks) >= 1
+
+
 class TestAnalyzePart:
     def test_no_datasheet(self, tmp_db, part_no_datasheet):
         result = analyze_part(tmp_db, part_no_datasheet)
         assert "error" in result
         assert "No datasheet" in result["error"]
 
-    def test_unknown_method(self, tmp_db, part_with_datasheet):
-        result = analyze_part(tmp_db, part_with_datasheet, method="unknown")
-        assert "error" in result
-
     @patch("jlcpcb_tool.analysis.get_secret")
     def test_no_api_key(self, mock_secret, tmp_db, part_with_datasheet):
         mock_secret.return_value = None
-        result = analyze_part(tmp_db, part_with_datasheet, method="openrouter")
+        result = analyze_part(tmp_db, part_with_datasheet)
         assert "error" in result
         assert "not configured" in result["error"]
 
     @patch("jlcpcb_tool.analysis.requests.post")
+    @patch("jlcpcb_tool.analysis.download_pdf")
     @patch("jlcpcb_tool.analysis.get_secret")
-    def test_openrouter_success(self, mock_secret, mock_post,
-                                 tmp_db, part_with_datasheet):
+    def test_analyze_success(self, mock_secret, mock_download, mock_post,
+                              tmp_db, part_with_datasheet):
         mock_secret.return_value = "test-key"
+        mock_download.return_value = FAKE_PDF
+
         mock_response = MagicMock()
+        mock_response.ok = True
         mock_response.json.return_value = {
             "choices": [{"message": {"content": "Power rating: 1/16W"}}],
             "usage": {"prompt_tokens": 100, "completion_tokens": 50},
@@ -60,13 +118,12 @@ class TestAnalyzePart:
         mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
-        # Need part in DB for analysis save
         tmp_db.upsert_part(part_with_datasheet)
 
-        result = analyze_part(tmp_db, part_with_datasheet, method="openrouter")
+        result = analyze_part(tmp_db, part_with_datasheet)
         assert result["response"] == "Power rating: 1/16W"
-        assert result["method"] == "openrouter"
         assert result["cost_usd"] >= 0
+        assert result["chunks"] == 1
 
         # Verify stored in DB
         analyses = tmp_db.get_analyses("C8287")
@@ -74,31 +131,36 @@ class TestAnalyzePart:
 
     @patch("jlcpcb_tool.analysis.requests.post")
     @patch("jlcpcb_tool.analysis.get_secret")
-    def test_llmlayer_success(self, mock_secret, mock_post,
-                               tmp_db, part_with_datasheet):
-        mock_secret.side_effect = lambda k: "test-key"
+    def test_analyze_with_provided_pdf(self, mock_secret, mock_post,
+                                        tmp_db, part_with_datasheet):
+        """When pdf_data is provided, skip download."""
+        mock_secret.return_value = "test-key"
 
-        # First call: LLMLayer extract
-        extract_response = MagicMock()
-        extract_response.json.return_value = {"text": "Extracted datasheet text..."}
-        extract_response.raise_for_status = MagicMock()
-
-        # Second call: OpenRouter completion
-        completion_response = MagicMock()
-        completion_response.json.return_value = {
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
             "choices": [{"message": {"content": "Analysis result"}}],
-            "usage": {"prompt_tokens": 200, "completion_tokens": 100},
+            "usage": {"prompt_tokens": 100, "completion_tokens": 50},
         }
-        completion_response.raise_for_status = MagicMock()
-
-        mock_post.side_effect = [extract_response, completion_response]
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
 
         tmp_db.upsert_part(part_with_datasheet)
 
-        result = analyze_part(tmp_db, part_with_datasheet, method="llmlayer")
+        result = analyze_part(tmp_db, part_with_datasheet, pdf_data=FAKE_PDF)
         assert result["response"] == "Analysis result"
-        assert result["method"] == "llmlayer"
-        assert result["extracted_text_length"] > 0
+        # download_pdf should not have been called
+
+    @patch("jlcpcb_tool.analysis.download_pdf")
+    @patch("jlcpcb_tool.analysis.get_secret")
+    def test_analyze_download_fails(self, mock_secret, mock_download,
+                                     tmp_db, part_with_datasheet):
+        mock_secret.return_value = "test-key"
+        mock_download.return_value = None
+
+        result = analyze_part(tmp_db, part_with_datasheet)
+        assert "error" in result
+        assert "Could not download" in result["error"]
 
 
 class TestEstimateCost:

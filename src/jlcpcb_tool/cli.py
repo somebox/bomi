@@ -21,7 +21,7 @@ def get_db() -> Database:
 
 # Common options
 _format_option = click.option(
-    "--format", "fmt", type=click.Choice(["table", "json", "csv"]),
+    "--format", "fmt", type=click.Choice(["table", "json", "csv", "markdown"]),
     default="table", help="Output format",
 )
 _attr_option = click.option(
@@ -220,14 +220,18 @@ def compare(lcsc_codes, use_case, fmt):
 
 @cli.command()
 @click.argument("lcsc_code")
-@click.option("--method", type=click.Choice(["openrouter", "llmlayer"]),
-              default="openrouter", help="Analysis method")
 @click.option("--prompt", default="Summarize the key specifications from this datasheet.",
               help="Analysis prompt")
 @click.option("--model", default=None, help="Override model name")
+@click.option("--pdf-engine", default="mistral-ocr",
+              type=click.Choice(["mistral-ocr", "pdf-text", "native"]),
+              help="PDF parsing engine")
 @_format_option
-def analyze(lcsc_code, method, prompt, model, fmt):
-    """Analyze a part's datasheet using LLM."""
+def analyze(lcsc_code, prompt, model, pdf_engine, fmt):
+    """Analyze a part's datasheet using LLM.
+
+    Downloads the PDF first, then sends it to OpenRouter for analysis.
+    """
     from .analysis import analyze_part
 
     db = get_db()
@@ -241,16 +245,149 @@ def analyze(lcsc_code, method, prompt, model, fmt):
             click.echo(f"Part {code} not found. Run 'jlcpcb fetch {code}' first.", err=True)
             sys.exit(1)
 
-        result = analyze_part(db, part, method=method, prompt=prompt, model=model)
+        result = analyze_part(db, part, prompt=prompt, model=model, pdf_engine=pdf_engine)
+
+        if "error" in result:
+            click.echo(result["error"], err=True)
+            sys.exit(1)
 
         if fmt == "json":
             click.echo(format_envelope("ok", "analyze", [result]))
         else:
-            click.echo(f"Analysis of {code} ({method}):")
+            chunks = result.get("chunks", 1)
+            chunk_info = f" ({chunks} chunks)" if chunks > 1 else ""
+            click.echo(f"Analysis of {code}{chunk_info}:")
             click.echo(f"Model: {result.get('model', 'N/A')}")
             click.echo(f"Cost: ${result.get('cost_usd', 0):.4f}")
             click.echo("")
             click.echo(result.get("response", ""))
+    finally:
+        db.close()
+
+
+@cli.command()
+@click.argument("lcsc_codes", nargs=-1, required=True)
+@click.option("--output", "-o", default=".", help="Output directory", type=click.Path())
+@click.option("--pdf", "dl_pdf", is_flag=True, help="Download datasheet PDF")
+@click.option("--summary", "dl_summary", is_flag=True, help="Generate markdown summary via LLM")
+@click.option("--prompt", default=None, help="Custom analysis prompt for summary")
+@click.option("--model", default=None, help="Override model name for summary")
+@click.option("--pdf-engine", default="mistral-ocr",
+              type=click.Choice(["mistral-ocr", "pdf-text", "native"]),
+              help="PDF parsing engine (mistral-ocr for scanned/CJK, pdf-text for clean text, native for model-native)")
+def datasheet(lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_engine):
+    """Download datasheets as PDF and/or generate markdown summaries.
+
+    Pipeline: download PDF → (optional) save to disk → send to LLM via
+    OpenRouter file API → save markdown summary.
+
+    When --summary is used, the PDF is always downloaded first (required
+    for analysis). If --pdf is also set, the same download is saved to disk.
+
+    Large PDFs (>1.5MB) are automatically split into chunks and analyzed
+    in parts, then synthesized into a single summary.
+
+    Examples:
+
+        jlcpcb datasheet C9864 --pdf -o docs/datasheets/
+
+        jlcpcb datasheet C9864 --summary --model openai/gpt-5.4
+
+        jlcpcb datasheet C9864 --pdf --summary --pdf-engine pdf-text
+    """
+    from .analysis import analyze_part, download_pdf
+
+    if not dl_pdf and not dl_summary:
+        dl_pdf = True  # default to PDF download if neither specified
+
+    output_dir = Path(output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    db = get_db()
+    try:
+        for lcsc_code in lcsc_codes:
+            code = lcsc_code.upper()
+            if not code.startswith("C"):
+                code = f"C{code}"
+
+            part = db.get_part(code)
+            if not part:
+                click.echo(f"Part {code} not found. Run 'jlcpcb fetch {code}' first.", err=True)
+                continue
+
+            if not part.datasheet_url:
+                click.echo(f"{code}: No datasheet URL available.", err=True)
+                continue
+
+            safe_name = part.mfr_part.replace("/", "_").replace(" ", "_")
+            pdf_path = output_dir / f"{safe_name}_{code}.pdf"
+
+            # Step 1: Get PDF bytes (download or load from disk)
+            pdf_data = None
+
+            # Use existing local PDF if present (may have been manually placed)
+            if pdf_path.exists():
+                pdf_data = pdf_path.read_bytes()
+                if pdf_data[:5] != b"%PDF-":
+                    pdf_data = None  # not a valid PDF
+
+            # Download if we don't have it yet
+            if pdf_data is None:
+                click.echo(f"Downloading {code} ({part.mfr_part})...", nl=False)
+                pdf_data = download_pdf(part.datasheet_url)
+                if pdf_data:
+                    click.echo(f" {len(pdf_data) // 1024}KB")
+                    # Always save when downloading (needed alongside summary)
+                    if dl_pdf or dl_summary:
+                        pdf_path.write_bytes(pdf_data)
+                else:
+                    click.echo(f" not directly downloadable", err=True)
+                    click.echo(f"  Download manually: {part.datasheet_url}", err=True)
+                    if dl_summary:
+                        click.echo(f"  Place PDF at: {pdf_path}", err=True)
+                    continue
+            elif dl_pdf:
+                click.echo(f"{code}: Using existing {pdf_path} ({len(pdf_data) // 1024}KB)")
+
+            # Step 2: Generate summary
+            if dl_summary:
+                md_path = output_dir / f"{safe_name}_{code}.md"
+                analysis_prompt = prompt or (
+                    "Provide a concise technical summary of this component. Include:\n"
+                    "- Key specifications (voltage, current, temperature range)\n"
+                    "- Pin descriptions with pin numbers\n"
+                    "- Typical application circuit component values\n"
+                    "- Important design notes or limitations\n"
+                    "Format as markdown. Be precise with pin numbers and specifications."
+                )
+                click.echo(f"Analyzing {code} ({part.mfr_part})...", nl=False)
+                try:
+                    result = analyze_part(
+                        db, part, prompt=analysis_prompt, model=model,
+                        pdf_data=pdf_data, pdf_engine=pdf_engine,
+                    )
+                except Exception as e:
+                    click.echo(f" FAILED: {e}", err=True)
+                    continue
+
+                if "error" in result:
+                    click.echo(f" FAILED: {result['error']}", err=True)
+                    continue
+
+                chunks = result.get("chunks", 1)
+                chunk_info = f", {chunks} chunks" if chunks > 1 else ""
+                header = (
+                    f"# {part.mfr_part} ({code})\n\n"
+                    f"**Manufacturer:** {part.manufacturer}  \n"
+                    f"**Package:** {part.package}  \n"
+                    f"**Category:** {part.category}  \n"
+                    f"**Datasheet:** {part.datasheet_url}  \n"
+                    f"**JLCPCB:** {part.jlcpcb_url}  \n\n"
+                    f"---\n\n"
+                )
+                md_path.write_text(header + result.get("response", ""))
+                cost = result.get("cost_usd", 0)
+                click.echo(f" {md_path} (${cost:.4f}{chunk_info})")
     finally:
         db.close()
 
@@ -439,20 +576,32 @@ def bom(ctx, check, fmt):
         import io
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow(["Ref", "LCSC", "Qty", "Description", "Package", "Price", "Stock", "Notes"])
+        writer.writerow([
+            "Ref", "LCSC", "Qty", "Part", "Manufacturer", "Package",
+            "Description", "Price", "Stock", "Type", "Notes",
+            "Datasheet", "JLCPCB URL",
+        ])
         for entry in bom_entries:
             part = entry["part"]
             writer.writerow([
                 entry["ref"],
                 entry["lcsc"] or "TBD",
                 entry["quantity"],
-                part.description if part else "",
+                part.mfr_part if part else "",
+                part.manufacturer if part else "",
                 part.package if part else "",
+                part.description if part else "",
                 f"{part.prices[0].unit_price:.4f}" if part and part.prices else "",
                 part.stock if part else "",
+                part.library_type if part else "",
                 entry["notes"],
+                part.datasheet_url or "" if part else "",
+                part.jlcpcb_url or "" if part else "",
             ])
         click.echo(buf.getvalue().rstrip())
+
+    elif fmt == "markdown":
+        click.echo(_format_bom_markdown(project, bom_entries))
 
     else:
         # Table format
@@ -463,16 +612,19 @@ def bom(ctx, check, fmt):
             price = f"${part.prices[0].unit_price:.4f}" if part and part.prices else "-"
             stock = f"{part.stock:,}" if part else "-"
             warn = " ⚠" if entry["warnings"] else ""
+            notes = entry["notes"]
+            if len(notes) > 50:
+                notes = notes[:49] + "…"
             rows.append([
                 entry["ref"],
                 entry["lcsc"] or "TBD",
                 entry["quantity"],
-                (part.description[:40] if part else entry["notes"][:40] or "-"),
+                notes or "-",
                 part.package if part else "-",
                 price,
                 stock + warn,
             ])
-        click.echo(tabulate(rows, headers=["Ref", "LCSC", "Qty", "Description", "Pkg", "Price", "Stock"]))
+        click.echo(tabulate(rows, headers=["Ref", "LCSC", "Qty", "Notes", "Pkg", "Price", "Stock"]))
 
         # Print warnings
         for entry in bom_entries:
@@ -513,6 +665,167 @@ def status(ctx):
             click.echo(f"  ⚠ {w}")
     else:
         click.echo("Warnings:   none")
+
+
+# ── BOM markdown formatter ──────────────────────────────────────────
+
+
+def _humanize_stock(stock: int) -> str:
+    """Format stock for display: 2137009 -> '2.14m', 22021 -> '22k', 3059 -> '3,059'."""
+    if stock >= 1_000_000:
+        return f"{stock / 1_000_000:.2f}m"
+    if stock >= 10_000:
+        return f"{stock // 1_000}k"
+    return f"{stock:,}"
+
+
+def _make_anchor(ref: str) -> str:
+    """Create a markdown anchor ID from a ref designator."""
+    return ref.lower().replace("-", "").replace(" ", "")
+
+
+def _group_bom_entries(bom_entries: list[dict]) -> list[dict]:
+    """Group BOM entries that share the same LCSC code.
+
+    Returns a list of group dicts with:
+      refs: list of ref strings
+      ref_label: combined label like "D1, D2"
+      total_qty: summed quantity
+      lcsc, part, notes, warnings: from first entry
+    """
+    from collections import OrderedDict
+
+    groups: OrderedDict[str, dict] = OrderedDict()
+    for entry in bom_entries:
+        key = entry["lcsc"] or entry["ref"]  # TBD entries keyed by ref
+        if key in groups:
+            g = groups[key]
+            g["refs"].append(entry["ref"])
+            g["total_qty"] += entry["quantity"]
+            # Merge notes (skip duplicates)
+            if entry["notes"] and entry["notes"] not in g["all_notes"]:
+                g["all_notes"].append(entry["notes"])
+            g["warnings"].extend(entry["warnings"])
+        else:
+            groups[key] = {
+                "refs": [entry["ref"]],
+                "total_qty": entry["quantity"],
+                "lcsc": entry["lcsc"],
+                "part": entry["part"],
+                "notes": entry["notes"],
+                "all_notes": [entry["notes"]] if entry["notes"] else [],
+                "warnings": list(entry["warnings"]),
+            }
+
+    result = []
+    for g in groups.values():
+        g["ref_label"] = ", ".join(g["refs"])
+        result.append(g)
+    return result
+
+
+def _format_bom_markdown(project, bom_entries: list[dict]) -> str:
+    """Format BOM as rich markdown with summary table + detail sections."""
+    lines = []
+    groups = _group_bom_entries(bom_entries)
+
+    # Header
+    lines.append(f"# {project.name}")
+    if project.description:
+        lines.append(f"\n{project.description}")
+    lines.append("")
+
+    # Cost summary
+    total_cost = sum(
+        e["part"].prices[0].unit_price * e["quantity"]
+        for e in bom_entries
+        if e["part"] and e["part"].prices
+    )
+    lines.append(f"**{len(bom_entries)} line items ({len(groups)} unique parts), ~${total_cost:.2f} estimated (qty 1)**")
+    lines.append("")
+
+    # Summary table
+    lines.append("## BOM")
+    lines.append("")
+    headers = ["Ref", "Qty", "LCSC", "Package", "Note", "Stock", "Price"]
+    lines.append("| " + " | ".join(headers) + " |")
+    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+
+    for g in groups:
+        part = g["part"]
+        anchor = (g["lcsc"] or _make_anchor(g["refs"][0])).lower()
+        pkg = part.package if part else ""
+        price = f"${part.prices[0].unit_price:.4f}" if part and part.prices else ""
+        stock = _humanize_stock(part.stock) if part else ""
+        note = g["notes"]
+        lines.append("| " + " | ".join([
+            f"[{g['ref_label']}](#{anchor})",
+            str(g["total_qty"]),
+            (g["lcsc"] or "TBD"),
+            pkg,
+            note,
+            stock,
+            price,
+        ]) + " |")
+
+    # Detail sections
+    lines.append("")
+    lines.append("## Details")
+
+    for g in groups:
+        part = g["part"]
+        ref_label = g["ref_label"]
+        anchor = _make_anchor(g["refs"][0])
+
+        lcsc_id = g["lcsc"] or ref_label
+        lines.append("")
+        lines.append(f"### {lcsc_id}")
+        lines.append("")
+
+        if not part:
+            lines.append(f"**Status:** TBD — no part selected")
+            if g["notes"]:
+                lines.append(f"**Notes:** {g['notes']}")
+            continue
+
+        # Detail table — no empty separator rows
+        lines.append("| | |")
+        lines.append("|---|---|")
+        lines.append(f"| **Designator** | {ref_label} |")
+        lines.append(f"| **Part** | {part.mfr_part} |")
+        lines.append(f"| **LCSC** | {g['lcsc']} |")
+        lines.append(f"| **Manufacturer** | {part.manufacturer} |")
+        lines.append(f"| **Package** | {part.package} |")
+        lib_label = "Basic (no extra fee)" if part.library_type == "base" else "Extended"
+        lines.append(f"| **Type** | {lib_label} |")
+        lines.append(f"| **Quantity** | {g['total_qty']} |")
+        lines.append(f"| **Description** | {part.description} |")
+
+        # Notes — show all unique notes for grouped entries
+        for note in g["all_notes"]:
+            lines.append(f"| **Notes** | {note} |")
+
+        # Stock & pricing
+        lines.append(f"| **Stock** | {part.stock:,} |")
+        if part.prices:
+            price_str = ", ".join(
+                f"${p.unit_price:.4f} (≥{p.qty_from})"
+                for p in part.prices
+            )
+            lines.append(f"| **Pricing** | {price_str} |")
+
+        # Attributes
+        for a in part.attributes:
+            lines.append(f"| **{a.name}** | {a.value_raw} |")
+
+        # Links
+        if part.datasheet_url:
+            lines.append(f"| **Datasheet** | {part.datasheet_url} |")
+        if part.jlcpcb_url:
+            lines.append(f"| **JLCPCB** | {part.jlcpcb_url} |")
+
+    lines.append("")
+    return "\n".join(lines)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────

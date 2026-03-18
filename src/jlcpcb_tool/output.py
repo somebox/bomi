@@ -15,6 +15,8 @@ def format_parts(parts: list[Part], fmt: str = "table", command: str = "") -> st
         return _format_json(parts, command)
     elif fmt == "csv":
         return _format_csv(parts)
+    elif fmt == "markdown":
+        return _format_markdown(parts)
     else:
         return _format_table(parts)
 
@@ -35,6 +37,8 @@ def format_compare(parts: list[Part], fmt: str = "table") -> str:
         return _format_json(parts, "compare")
     elif fmt == "csv":
         return _format_csv(parts)
+    elif fmt == "markdown":
+        return _format_compare_markdown(parts)
     else:
         return _format_compare_table(parts)
 
@@ -191,3 +195,64 @@ def _format_csv(parts: list[Part]) -> str:
             p.stock, price, p.library_type, p.preferred, p.description,
         ])
     return output.getvalue()
+
+
+def _format_markdown(parts: list[Part]) -> str:
+    if not parts:
+        return "No results found."
+    headers = ["LCSC", "MFR Part", "Manufacturer", "Package", "Stock", "Price", "Type"]
+    lines = ["| " + " | ".join(headers) + " |"]
+    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+    for p in parts:
+        price = f"${p.prices[0].unit_price:.4f}" if p.prices else ""
+        lib = "Basic" if p.library_type == "base" else "Ext"
+        if p.preferred:
+            lib += "*"
+        lines.append("| " + " | ".join([
+            p.lcsc_code,
+            p.mfr_part,
+            p.manufacturer,
+            p.package,
+            f"{p.stock:,}",
+            price,
+            lib,
+        ]) + " |")
+    return "\n".join(lines)
+
+
+def _format_compare_markdown(parts: list[Part]) -> str:
+    if not parts:
+        return "No parts to compare."
+
+    all_attrs = []
+    seen = set()
+    for p in parts:
+        for a in p.attributes:
+            if a.name not in seen:
+                all_attrs.append(a.name)
+                seen.add(a.name)
+
+    headers = ["Field"] + [p.lcsc_code for p in parts]
+    rows = [
+        ["MFR Part"] + [p.mfr_part for p in parts],
+        ["Manufacturer"] + [p.manufacturer for p in parts],
+        ["Package"] + [p.package for p in parts],
+        ["Stock"] + [str(p.stock) for p in parts],
+        ["Price (qty 1)"] + [
+            f"${p.prices[0].unit_price:.4f}" if p.prices else "-"
+            for p in parts
+        ],
+        ["Type"] + [p.library_type for p in parts],
+    ]
+    for attr_name in all_attrs:
+        values = []
+        for p in parts:
+            attr = next((a for a in p.attributes if a.name == attr_name), None)
+            values.append(attr.value_raw if attr else "-")
+        rows.append([attr_name] + values)
+
+    lines = ["| " + " | ".join(headers) + " |"]
+    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+    for row in rows:
+        lines.append("| " + " | ".join(row) + " |")
+    return "\n".join(lines)
