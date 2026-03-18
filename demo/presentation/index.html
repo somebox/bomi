@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>jlcpcb-tool Demo - USB LED Flashlight</title>
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css"
+      id="theme"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.css"
+    />
+
+    <style>
+      :root {
+        --panel-bg: #131722;
+        --panel-border: #2a3348;
+        --muted: #9ca9c6;
+        --accent: #6fd3ff;
+      }
+      .reveal {
+        font-size: 28px;
+      }
+      .reveal h1,
+      .reveal h2,
+      .reveal h3 {
+        text-transform: none;
+      }
+      .title-card {
+        text-align: left;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .title-card p {
+        color: var(--muted);
+        margin-top: 1rem;
+      }
+      .section-tag {
+        display: inline-block;
+        margin-bottom: 1rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 999px;
+        padding: 0.2rem 0.8rem;
+        color: var(--accent);
+        font-size: 0.7em;
+      }
+      .demo-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.2rem;
+        align-items: start;
+      }
+      .terminal-panel,
+      .notes-panel {
+        background: var(--panel-bg);
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        padding: 0.7rem;
+      }
+      .terminal-panel {
+        overflow: auto;
+      }
+      .terminal-panel asciinema-player {
+        display: block;
+        width: 100%;
+        cursor: pointer;
+      }
+      .notes-panel h4 {
+        margin-top: 0.2rem;
+        margin-bottom: 0.6rem;
+        color: var(--accent);
+      }
+      .notes-panel ul {
+        font-size: 0.68em;
+        line-height: 1.45;
+        margin: 0;
+        padding-left: 0;
+        list-style-position: inside;
+      }
+      .commands-box {
+        margin-top: 0.75rem;
+        padding-top: 0.65rem;
+        border-top: 1px solid var(--panel-border);
+      }
+      .commands-box h5 {
+        margin: 0 0 0.45rem;
+        color: var(--accent);
+        font-size: 0.56em;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .commands-box pre {
+        margin: 0.2rem 0 0;
+        padding: 0.45rem 0.55rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        background: #0f1420;
+        font-size: 0.45em;
+        line-height: 1.3;
+        color: #d6def3;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+      .commands-box pre code {
+        font-size: inherit;
+        color: inherit;
+      }
+      .cmd-expl {
+        margin: 0.22rem 0 0.38rem;
+        font-size: 0.48em;
+        line-height: 1.28;
+        color: #aab7d4;
+        text-align: left;
+      }
+      .mini {
+        color: var(--muted);
+        font-size: 0.58em;
+      }
+      .runtime-warning {
+        position: fixed;
+        top: 0.6rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        max-width: 980px;
+        background: #4d231f;
+        border: 1px solid #b24c43;
+        border-radius: 8px;
+        color: #ffd9d4;
+        padding: 0.55rem 0.85rem;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+      .reveal .controls {
+        transform: scale(1.45);
+        transform-origin: bottom right;
+      }
+      .reveal .controls button {
+        opacity: 0.92;
+      }
+      @media (max-width: 1100px) {
+        .demo-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <div class="title-card">
+            <div class="section-tag">Demo</div>
+            <h1>jlcpcb-tool</h1>
+            <h3>Building and Validating a USB LED Flashlight BOM</h3>
+            <p>
+              Search parts, compare options, select BOM entries, validate stock and cost, and keep
+              everything version-controlled.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <div class="title-card">
+            <div class="section-tag">Project Goal</div>
+            <h2>What We Build</h2>
+            <p>
+              A compact USB-C powered LED flashlight board using a PT4115 driver and two brightness
+              control switches.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <div class="title-card">
+            <div class="section-tag">Chapter 1</div>
+            <h2>Project Setup</h2>
+            <p>Initialize repository and create the project BOM baseline.</p>
+          </div>
+        </section>
+
+        <section>
+          <h3>Create project workspace</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-setup-project.cast"
+                cols="75"
+                rows="28"
+                speed="1.5"
+                idle-time-limit="1.5"
+                preload="true"
+                theme="asciinema"
+                font-size="14px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li>Start with a clean project folder under demo workspace.</li>
+                <li>Use normal git workflow from the beginning.</li>
+                <li>Keep all BOM changes inspectable as diffs.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>mkdir -p usb-led-flashlight</code></pre>
+                <p class="cmd-expl">Create the demo project folder.</p>
+                <pre><code>git init usb-led-flashlight</code></pre>
+                <p class="cmd-expl">Start version tracking immediately.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h3>Initialize jlcpcb project metadata</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-init-jlcpcb.cast"
+                cols="75"
+                rows="28"
+                speed="1.5"
+                idle-time-limit="1.5"
+                preload="true"
+                theme="asciinema"
+                font-size="14px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li><code>.jlcpcb/project.yaml</code> becomes project BOM source-of-truth.</li>
+                <li>Metadata is lightweight and repository-friendly.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>jlcpcb init --name "usb-led-flashlight" --description "..."</code></pre>
+                <p class="cmd-expl">Create `.jlcpcb/project.yaml` for this project.</p>
+                <pre><code>ls -la .jlcpcb</code></pre>
+                <p class="cmd-expl">Confirm project metadata files were created.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="title-card">
+            <div class="section-tag">Chapter 2</div>
+            <h2>Search and Inspect Parts</h2>
+            <p>Use live search to shortlist components and inspect selected part metadata.</p>
+          </div>
+        </section>
+
+        <section>
+          <h3>Search core parts</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-search-core-parts.cast"
+                cols="75"
+                rows="28"
+                speed="1.45"
+                idle-time-limit="1.2"
+                preload="true"
+                theme="asciinema"
+                font-size="13px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li>Search returns stock, package, price, and type in one step.</li>
+                <li>Keyword quality directly affects candidate quality.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>jlcpcb search &lt;term&gt; --limit n</code></pre>
+                <p class="cmd-expl">Find components matching a term and cap results at `n`.</p>
+                <pre><code>jlcpcb search "PT4115 LED driver" --limit 5</code></pre>
+                <p class="cmd-expl">Shortlist driver candidates with stock/price data.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h3>Inspect a driver part in detail</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-inspect-driver.cast"
+                cols="75"
+                rows="28"
+                speed="1.4"
+                idle-time-limit="1.2"
+                preload="true"
+                theme="asciinema"
+                font-size="13px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li><code>fetch</code> caches exact part details for repeatable offline inspection.</li>
+                <li><code>info</code> surfaces key ratings and datasheet links.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>jlcpcb fetch &lt;lcsc_code&gt;</code></pre>
+                <p class="cmd-expl">Cache exact part details locally.</p>
+                <pre><code>jlcpcb info &lt;lcsc_code&gt;</code></pre>
+                <p class="cmd-expl">Inspect ratings, attributes, and datasheet links.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h3>Search supporting power parts</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-search-supporting-parts.cast"
+                cols="75"
+                rows="28"
+                speed="1.5"
+                idle-time-limit="1.2"
+                preload="true"
+                theme="asciinema"
+                font-size="13px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li>Use targeted searches for diode, inductor, and switch candidates.</li>
+                <li>Filter for practical inventory and package constraints.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>jlcpcb search "Schottky diode SOD-123" --basic-only --limit 5</code></pre>
+                <p class="cmd-expl">Find low-cost, assembly-friendly diode options.</p>
+                <pre><code>jlcpcb search "inductor 47uH SMD" --limit 5</code></pre>
+                <p class="cmd-expl">Find suitable buck inductor candidates.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="title-card">
+            <div class="section-tag">Chapter 3</div>
+            <h2>Compare and Decide</h2>
+            <p>Evaluate trade-offs and document constraints before final selection.</p>
+          </div>
+        </section>
+
+        <section>
+          <h3>Compare switch options</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-compare-switch-options.cast"
+                cols="75"
+                rows="28"
+                speed="1.45"
+                idle-time-limit="1.2"
+                preload="true"
+                theme="asciinema"
+                font-size="13px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li>Compare makes trade-offs explicit in a single table.</li>
+                <li>Catalog metadata gaps are part of real engineering workflow.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>jlcpcb compare &lt;lcsc_a&gt; &lt;lcsc_b&gt;</code></pre>
+                <p class="cmd-expl">Compare specs and trade-offs side by side.</p>
+                <pre><code>jlcpcb compare C49023761 C145837</code></pre>
+                <p class="cmd-expl">Evaluate switch options quickly.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="title-card">
+            <div class="section-tag">Chapter 4</div>
+            <h2>Build and Validate BOM</h2>
+            <p>Select final parts, review project status, run checks, and export data.</p>
+          </div>
+        </section>
+
+        <section>
+          <h3>Select BOM parts</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-select-bom-parts.cast"
+                cols="75"
+                rows="28"
+                speed="2.25"
+                idle-time-limit="1.2"
+                preload="true"
+                theme="asciinema"
+                font-size="13px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li>Each <code>select</code> binds a reference designator to an LCSC part.</li>
+                <li>Notes capture intent and aid future reviews.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>jlcpcb select &lt;lcsc_code&gt; --ref &lt;ref&gt; --qty n --notes "..."</code></pre>
+                <p class="cmd-expl">Add or assign a part to a BOM reference.</p>
+                <pre><code>jlcpcb select C347356 --ref U1 --qty 1 --notes "PT4115 LED driver"</code></pre>
+                <p class="cmd-expl">Record one concrete project selection.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h3>Review BOM and project status</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-review-bom-status.cast"
+                cols="75"
+                rows="28"
+                speed="1.45"
+                idle-time-limit="1.2"
+                preload="true"
+                theme="asciinema"
+                font-size="13px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li><code>bom</code> lists resolved parts with cost and stock context.</li>
+                <li><code>status</code> summarizes count, estimated cost, and warnings.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>jlcpcb bom</code></pre>
+                <p class="cmd-expl">Show the full resolved project BOM.</p>
+                <pre><code>jlcpcb status</code></pre>
+                <p class="cmd-expl">Summarize cost, count, and warnings.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h3>Refine, check, and export</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-refine-validate.cast"
+                cols="75"
+                rows="28"
+                speed="1.45"
+                idle-time-limit="1.2"
+                preload="true"
+                theme="asciinema"
+                font-size="13px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li>Reference updates are first-class operations (<code>relabel</code>).</li>
+                <li><code>bom --check</code> refreshes BOM health with live data.</li>
+                <li>CSV/JSON exports support downstream scripts and reviews.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>jlcpcb relabel C1 C99; jlcpcb relabel C2 C1; jlcpcb relabel C99 C2</code></pre>
+                <p class="cmd-expl">Swap references safely using a temporary designator.</p>
+                <pre><code>jlcpcb bom --check</code></pre>
+                <p class="cmd-expl">Refresh stock/price and validate BOM health.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h3>Create artifacts and inspect git changes</h3>
+          <div class="demo-grid">
+            <div class="terminal-panel">
+              <asciinema-player
+                src="./recordings/scene-artifacts-and-git.cast"
+                cols="75"
+                rows="28"
+                speed="1.45"
+                idle-time-limit="1.2"
+                preload="true"
+                theme="asciinema"
+                font-size="13px"
+              ></asciinema-player>
+            </div>
+            <div class="notes-panel">
+              <h4>Concept</h4>
+              <ul>
+                <li>Save datasheet PDFs for critical parts as review artifacts.</li>
+                <li>Use git status to confirm exactly what changed.</li>
+              </ul>
+              <div class="commands-box">
+                <h5>Key Commands</h5>
+                <pre><code>jlcpcb datasheet &lt;codes...&gt; --pdf -o artifacts/datasheets</code></pre>
+                <p class="cmd-expl">Capture datasheet PDFs as project artifacts.</p>
+                <pre><code>git status --short</code></pre>
+                <p class="cmd-expl">Review all changes before committing.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="title-card">
+            <div class="section-tag">Recap</div>
+            <h2>Workflow Summary</h2>
+            <p>
+              We moved from ad-hoc part selection to a repeatable workflow with traceable decisions.
+            </p>
+            <p class="mini">
+              We validated stock and pricing early, captured comparison trade-offs, exported BOM
+              artifacts, and kept all part decisions in version control for review and reuse.
+            </p>
+            <p class="mini">
+              Demo assets: <code>demo/script.md</code>, <code>demo/generator/</code>,
+              <code>demo/presentation/</code>
+            </p>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.min.js"></script>
+    <script>
+      const playerState = new WeakMap();
+
+      function parseNumber(value) {
+        if (value == null || value === "") {
+          return undefined;
+        }
+        const num = Number(value);
+        return Number.isFinite(num) ? num : undefined;
+      }
+
+      function togglePlayback(el) {
+        const state = playerState.get(el);
+        if (!state || !state.player) {
+          return;
+        }
+        if (state.isPlaying) {
+          if (typeof state.player.pause === "function") {
+            state.player.pause();
+          }
+          state.isPlaying = false;
+        } else {
+          if (typeof state.player.play === "function") {
+            state.player.play();
+          }
+          state.isPlaying = true;
+        }
+      }
+
+      function computeTerminalFontSize(el, cols) {
+        // Estimate monospace character width and derive a size that fits the
+        // recorded column count inside the visible panel width.
+        const panel = el.closest(".terminal-panel") || el;
+        const panelWidth = panel.clientWidth || el.clientWidth || 800;
+        const usableWidth = Math.max(280, panelWidth - 28); // panel padding + safe margin
+        const charWidthFactor = 0.62; // typical monospace char width ~= 0.60-0.64em
+        const rawPx = Math.floor(usableWidth / (Math.max(cols, 1) * charWidthFactor));
+        const clampedPx = Math.max(10, Math.min(16, rawPx));
+        return `${clampedPx}px`;
+      }
+
+      function shouldIgnoreToggleClick(target) {
+        if (!(target instanceof Element)) {
+          return false;
+        }
+        return Boolean(
+          target.closest(
+            ".ap-controls, .ap-control-bar, .ap-progressbar, .ap-playback-button, .ap-speed, button, input, a"
+          )
+        );
+      }
+
+      function createAsciinemaPlayer(el) {
+        if (!el || el.dataset.playerInit === "true") {
+          return;
+        }
+        const src = el.getAttribute("src");
+        if (!src || !window.AsciinemaPlayer) {
+          return;
+        }
+        const options = {
+          cols: parseNumber(el.getAttribute("cols")),
+          rows: parseNumber(el.getAttribute("rows")),
+          speed: parseNumber(el.getAttribute("speed")) ?? 1.0,
+          idleTimeLimit: parseNumber(el.getAttribute("idle-time-limit")) ?? 3.0,
+          preload: el.getAttribute("preload") === "true",
+          theme: el.getAttribute("theme") || undefined,
+          autoPlay: true,
+          fit: false,
+        };
+        options.terminalFontSize = computeTerminalFontSize(el, options.cols || 75);
+        options.terminalLineHeight = 1.2;
+
+        const player = window.AsciinemaPlayer.create(src, el, options);
+        playerState.set(el, { player, isPlaying: true });
+        el.addEventListener("click", (event) => {
+          if (shouldIgnoreToggleClick(event.target)) {
+            return;
+          }
+          togglePlayback(el);
+        });
+        el.dataset.playerInit = "true";
+      }
+
+      function initPlayersInSlide(slide) {
+        if (!slide) {
+          return;
+        }
+        slide.querySelectorAll("asciinema-player").forEach(createAsciinemaPlayer);
+      }
+
+      function showProtocolWarningIfNeeded() {
+        if (window.location.protocol !== "file:") {
+          return;
+        }
+        const banner = document.createElement("div");
+        banner.className = "runtime-warning";
+        banner.innerHTML =
+          "This presentation is opened with <code>file://</code>. Some browsers block loading local <code>.cast</code> files in this mode. Serve this directory over HTTP, for example: <code>python -m http.server 8000</code>, then open <code>http://localhost:8000/demo/presentation/</code>.";
+        document.body.appendChild(banner);
+      }
+
+      Reveal.initialize({
+        hash: true,
+        slideNumber: true,
+        transition: "fade",
+        controls: true,
+        progress: true,
+        center: false,
+      }).then(() => {
+        showProtocolWarningIfNeeded();
+        initPlayersInSlide(Reveal.getCurrentSlide());
+      });
+
+      Reveal.on("slidechanged", (event) => {
+        initPlayersInSlide(event.currentSlide);
+      });
+    </script>
+  </body>
+</html>

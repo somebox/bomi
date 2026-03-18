@@ -7,8 +7,13 @@ build/
 .pytest_cache/
 .uv/
 *.db
+*.sqlite
 *.sqlite3
+.DS_Store
+
+# Downloaded datasheets (local artifacts, not source files)
 tests/fixtures/datasheets/*.pdf
+artifacts/datasheets/
 
 # Legacy local data (migrated to ~/Library/Application Support/jlcpcb/)
 data/

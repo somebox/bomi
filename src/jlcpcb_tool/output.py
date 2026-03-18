@@ -9,6 +9,22 @@ from tabulate import tabulate
 from .models import Part
 
 
+def _truncate(text: str, max_len: int) -> str:
+    """Truncate text to max_len using trailing ellipsis."""
+    s = str(text) if text is not None else ""
+    s = s.replace("\r", " ").replace("\n", " ")
+    if len(s) <= max_len:
+        return s
+    if max_len <= 3:
+        return s[:max_len]
+    return s[: max_len - 3] + "..."
+
+
+def _escape_md_cell(text: str) -> str:
+    """Escape markdown table cell delimiters."""
+    return text.replace("|", "\\|")
+
+
 def format_parts(parts: list[Part], fmt: str = "table", command: str = "") -> str:
     """Format a list of parts for output."""
     if fmt == "json":
@@ -158,9 +174,9 @@ def _format_compare_table(parts: list[Part]) -> str:
     # Build comparison table
     headers = ["Field"] + [p.lcsc_code for p in parts]
     rows = [
-        ["MFR Part"] + [p.mfr_part for p in parts],
-        ["Manufacturer"] + [p.manufacturer for p in parts],
-        ["Package"] + [p.package for p in parts],
+        ["MFR Part"] + [_truncate(p.mfr_part, 24) for p in parts],
+        ["Manufacturer"] + [_truncate(p.manufacturer, 24) for p in parts],
+        ["Package"] + [_truncate(p.package, 24) for p in parts],
         ["Stock"] + [str(p.stock) for p in parts],
         ["Price (qty 1)"] + [
             f"${p.prices[0].unit_price:.4f}" if p.prices else "-"
@@ -173,8 +189,8 @@ def _format_compare_table(parts: list[Part]) -> str:
         values = []
         for p in parts:
             attr = next((a for a in p.attributes if a.name == attr_name), None)
-            values.append(attr.value_raw if attr else "-")
-        rows.append([attr_name] + values)
+            values.append(_truncate(attr.value_raw, 24) if attr else "-")
+        rows.append([_truncate(attr_name, 28)] + values)
 
     return tabulate(rows, headers=headers, tablefmt="simple")
 
@@ -234,9 +250,9 @@ def _format_compare_markdown(parts: list[Part]) -> str:
 
     headers = ["Field"] + [p.lcsc_code for p in parts]
     rows = [
-        ["MFR Part"] + [p.mfr_part for p in parts],
-        ["Manufacturer"] + [p.manufacturer for p in parts],
-        ["Package"] + [p.package for p in parts],
+        ["MFR Part"] + [_truncate(p.mfr_part, 24) for p in parts],
+        ["Manufacturer"] + [_truncate(p.manufacturer, 24) for p in parts],
+        ["Package"] + [_truncate(p.package, 24) for p in parts],
         ["Stock"] + [str(p.stock) for p in parts],
         ["Price (qty 1)"] + [
             f"${p.prices[0].unit_price:.4f}" if p.prices else "-"
@@ -248,11 +264,11 @@ def _format_compare_markdown(parts: list[Part]) -> str:
         values = []
         for p in parts:
             attr = next((a for a in p.attributes if a.name == attr_name), None)
-            values.append(attr.value_raw if attr else "-")
-        rows.append([attr_name] + values)
+            values.append(_truncate(attr.value_raw, 24) if attr else "-")
+        rows.append([_truncate(attr_name, 28)] + values)
 
-    lines = ["| " + " | ".join(headers) + " |"]
+    lines = ["| " + " | ".join(_escape_md_cell(h) for h in headers) + " |"]
     lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
     for row in rows:
-        lines.append("| " + " | ".join(row) + " |")
+        lines.append("| " + " | ".join(_escape_md_cell(str(cell)) for cell in row) + " |")
     return "\n".join(lines)
