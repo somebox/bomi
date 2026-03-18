@@ -1,328 +1,182 @@
-# JLC PCB Parts SQLite Database Guide
+# Local SQLite Database Guide
 
-This document describes the SQLite database (`cache.sqlite3`) used by jlcparts. It covers the schema, field meanings, data formats, and example queries. This is intended as a reference for querying the database directly for offline analysis.
+This document describes the `parts.db` database used by `jlcpcb-tool`. It is the shared local cache for fetched parts, prices, attributes, and saved datasheet analyses.
 
-## Getting the Database
+## Location
 
-The pre-built SQLite database is hosted as a split zip archive on the upstream GitHub Pages site. To download and reassemble it:
+The database is created automatically in the global data directory:
 
-```bash
-# Download all split volumes (each is 50 MB)
-for i in $(seq -w 01 18); do
-  wget -q "https://yaqwsx.github.io/jlcparts/data/cache.z$i"
-done
-wget -q "https://yaqwsx.github.io/jlcparts/data/cache.zip"
+- macOS: `~/Library/Application Support/jlcpcb/parts.db`
+- Linux: `~/.local/share/jlcpcb/parts.db`
 
-# Concatenate and fix the split-zip structure
-cat cache.z* cache.zip > cache-combined-bad.zip
-echo -e 'z\r\n' | zip -FF cache-combined-bad.zip -O cache-combined.zip
-rm cache-combined-bad.zip cache.z* cache.zip
+The cache is shared across all projects.
 
-# Extract
-unzip cache-combined.zip
-# Result: cache.sqlite3 (~930 MB)
-```
+## Schema Overview
 
-Note: The upstream SQLite cache may be stale (months old). The processed JSONL data at `https://dougy83.github.io/jlcparts/data/all.jsonlines.tar` is rebuilt daily but is in a different format (gzip-compressed JSONL, not SQLite).
+The current schema lives in `src/jlcpcb_tool/db.py`.
 
-## Database Schema
+### Table: `parts`
 
-The database has three tables and one convenience view.
+One row per cached LCSC part.
 
-### Table: `components`
+| Column | Type | Notes |
+|--------|------|-------|
+| `lcsc_code` | TEXT PK | `C8287`, `C25900`, and so on |
+| `mfr_part` | TEXT | Manufacturer part number |
+| `manufacturer` | TEXT | Manufacturer name |
+| `package` | TEXT | Package string |
+| `category` | TEXT | Top-level category |
+| `subcategory` | TEXT | Subcategory |
+| `description` | TEXT | Human-readable description |
+| `stock` | INTEGER | Last cached stock count |
+| `library_type` | TEXT | JLCPCB library type such as `base` or `expand` |
+| `preferred` | INTEGER | Stored as `0` or `1` |
+| `datasheet_url` | TEXT | Datasheet URL if present |
+| `jlcpcb_url` | TEXT | JLCPCB part page URL if present |
+| `fetched_at` | TEXT | ISO timestamp |
+| `raw_json` | TEXT | Raw normalized source payload |
 
-The main table. Each row is one component from the JLC PCB catalog.
+### Table: `prices`
 
-| Column | Type | Description |
-|---|---|---|
-| `lcsc` | INTEGER (PK) | LCSC part number as integer (e.g., `7063` for `C7063`). To get the LCSC code string, prepend `C`. |
-| `category_id` | INTEGER (FK) | References `categories.id`. |
-| `mfr` | TEXT | Manufacturer's part number (e.g., `RC0402FR-0710KL`). |
-| `package` | TEXT | Package type (e.g., `0402`, `SOT-23`, `SOIC-8`). |
-| `joints` | INTEGER | Number of solder joints (pads) for the component. |
-| `manufacturer_id` | INTEGER (FK) | References `manufacturers.id`. |
-| `basic` | INTEGER | `1` if this is a JLC PCB "basic" part (no extra fee), `0` if "extended". |
-| `preferred` | INTEGER | `1` if this is a JLC PCB "preferred" part, `0` otherwise. |
-| `description` | TEXT | Short text description of the component. |
-| `datasheet` | TEXT | URL to the component's datasheet (PDF). |
-| `stock` | INTEGER | Current stock quantity at JLC PCB. |
-| `price` | TEXT | JSON string encoding tiered pricing (see [Price Format](#price-format)). |
-| `last_update` | INTEGER | Unix timestamp of when this component was last fetched/updated. |
-| `extra` | TEXT | JSON string with extended data from LCSC API (see [Extra Field](#extra-field)). |
-| `flag` | INTEGER | Internal processing flag (used during database updates, not useful for analysis). |
-| `last_on_stock` | INTEGER | Unix timestamp of when the component was last known to be in stock. `0` if never recorded. |
+Tiered pricing for each cached part.
 
-### Table: `categories`
+| Column | Type | Notes |
+|--------|------|-------|
+| `lcsc_code` | TEXT | FK to `parts.lcsc_code` |
+| `qty_from` | INTEGER | Minimum quantity for the tier |
+| `qty_to` | INTEGER | Maximum quantity, nullable |
+| `unit_price` | REAL | Unit price in USD |
 
-Lookup table for component categories.
+Primary key: `(lcsc_code, qty_from)`
 
-| Column | Type | Description |
-|---|---|---|
-| `id` | INTEGER (PK) | Category ID. |
-| `category` | TEXT | Top-level category name (e.g., `Resistors`, `Capacitors`, `Integrated Circuits (ICs)`). |
-| `subcategory` | TEXT | Subcategory name (e.g., `Chip Resistor - Surface Mount`, `Multilayer Ceramic Capacitors MLCC`). |
+### Table: `attributes`
 
-### Table: `manufacturers`
+Parsed parametric attributes for each cached part.
 
-Lookup table for manufacturer names.
+| Column | Type | Notes |
+|--------|------|-------|
+| `lcsc_code` | TEXT | FK to `parts.lcsc_code` |
+| `attr_name` | TEXT | Attribute name such as `Resistance` |
+| `attr_value_raw` | TEXT | Original string value |
+| `attr_value_num` | REAL | Parsed numeric value when available |
+| `attr_unit` | TEXT | Parsed unit when available |
 
-| Column | Type | Description |
-|---|---|---|
-| `id` | INTEGER (PK) | Manufacturer ID. |
-| `name` | TEXT | Manufacturer name (e.g., `YAGEO`, `Samsung Electro-Mechanics`, `Texas Instruments`). |
+Primary key: `(lcsc_code, attr_name)`
 
-### View: `v_components`
+### Table: `analyses`
 
-A pre-joined view that resolves the foreign keys, making queries simpler. Returns all useful fields with human-readable category and manufacturer names.
+Saved datasheet analysis results.
 
-| Column | Source |
-|---|---|
-| `lcsc` | `components.lcsc` (integer, prepend `C` for the LCSC code) |
-| `category_id` | `components.category_id` |
-| `category` | `categories.category` |
-| `subcategory` | `categories.subcategory` |
-| `mfr` | `components.mfr` |
-| `package` | `components.package` |
-| `joints` | `components.joints` |
-| `manufacturer` | `manufacturers.name` |
-| `basic` | `components.basic` |
-| `preferred` | `components.preferred` |
-| `description` | `components.description` |
-| `datasheet` | `components.datasheet` |
-| `stock` | `components.stock` |
-| `last_on_stock` | `components.last_on_stock` |
-| `price` | `components.price` (JSON string) |
-| `extra` | `components.extra` (JSON string) |
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | INTEGER PK | Autoincrement row id |
+| `lcsc_code` | TEXT | FK to `parts.lcsc_code` |
+| `method` | TEXT | Current implementation stores `openrouter` |
+| `model` | TEXT | OpenRouter model name |
+| `prompt` | TEXT | User prompt |
+| `response` | TEXT | Markdown or plain text response |
+| `extracted_json` | TEXT | Reserved for structured extraction |
+| `created_at` | TEXT | ISO timestamp |
+| `cost_usd` | REAL | Estimated OpenRouter cost |
 
-## Data Formats
+## Indexes
 
-### Price Format
+The current schema creates these indexes:
 
-The `price` column is a JSON array of price tiers. Each tier is an object:
-
-```json
-[
-  {"qFrom": 1, "qTo": 9, "price": 0.0037},
-  {"qFrom": 10, "qTo": 99, "price": 0.0025},
-  {"qFrom": 100, "qTo": 499, "price": 0.0019},
-  {"qFrom": 500, "qTo": null, "price": 0.0016}
-]
-```
-
-- `qFrom`: minimum order quantity for this tier
-- `qTo`: maximum order quantity (`null` means unlimited)
-- `price`: unit price in USD
-
-### Extra Field
-
-The `extra` column is a JSON string containing extended component data fetched from the LCSC API. It can be an empty object `{}` (meaning LCSC had no data, often for discontinued parts) or a rich object. Common keys include:
-
-| Key | Type | Description |
-|---|---|---|
-| `attributes` | object | Key-value pairs of component parameters (e.g., `"Resistance": "10kΩ"`, `"Capacitance": "100nF"`). This is the most useful field for parametric analysis. |
-| `images` | array | Product images from LCSC. |
-| `url` | string | Full LCSC product page URL. |
-| `datasheet` | string | Datasheet URL (from LCSC, may differ from JLC PCB's). |
-| `manufacturer` | object | `{"name": "YAGEO"}` |
-| `number` | string | LCSC product number. |
-| `title` | string | Product title from LCSC. |
-| `prices` | array | LCSC pricing (may differ from JLC PCB pricing). |
-
-The `attributes` object varies by component type. Common attribute keys:
-
-- **Resistors**: `Resistance`, `Power`, `Tolerance`
-- **Capacitors**: `Capacitance`, `Allowable Voltage`, `Tolerance`
-- **Inductors**: `Inductance`, `Rated current`, `DC Resistance`
-- **MOSFETs**: `Drain Source Voltage (Vdss)`, `Continuous Drain Current (Id)`, `Rds On (Max) @ Id, Vgs`
-- **ICs**: `Supply Voltage (Max)`, `Supply Voltage (Min)`, `Operating Temperature (Max/Min)`
-- **General**: `Package`, `Basic/Extended`, `Status`, `Manufacturer`
-
-### LCSC Code Conversion
-
-The `lcsc` column stores the numeric part only. To convert:
-- **Database to display**: prepend `C` to the integer (e.g., `7063` becomes `C7063`)
-- **Display to query**: strip the `C` prefix and cast to integer
+- `idx_parts_category` on `parts(category)`
+- `idx_parts_package` on `parts(package)`
+- `idx_parts_stock` on `parts(stock)`
+- `idx_attr_name_num` on `attributes(attr_name, attr_value_num)`
 
 ## Example Queries
 
-### Basic lookups
+### Look up one part
 
 ```sql
--- Count total components
-SELECT COUNT(*) FROM components;
-
--- Look up a specific part by LCSC code (e.g., C7063)
-SELECT * FROM v_components WHERE lcsc = 7063;
-
--- List all categories and subcategories
-SELECT category, subcategory, COUNT(*) as part_count
-FROM v_components
-GROUP BY category, subcategory
-ORDER BY category, subcategory;
+SELECT *
+FROM parts
+WHERE lcsc_code = 'C8287';
 ```
 
-### Filtering by category and stock
+### Show the first pricing tier
 
 ```sql
--- All in-stock 0402 chip resistors
-SELECT 'C' || lcsc AS lcsc_code, mfr, description, stock, price
-FROM v_components
-WHERE subcategory = 'Chip Resistor - Surface Mount'
-  AND package = '0402'
-  AND stock > 0
-ORDER BY stock DESC;
-
--- Basic parts only (no extra assembly fee)
-SELECT 'C' || lcsc AS lcsc_code, category, subcategory, mfr, description
-FROM v_components
-WHERE basic = 1
-  AND stock > 0;
-
--- Preferred parts (JLC PCB preferred, subset of basic)
-SELECT 'C' || lcsc AS lcsc_code, mfr, description, stock
-FROM v_components
-WHERE preferred = 1
-  AND stock > 0
-ORDER BY category, subcategory;
+SELECT p.lcsc_code, p.mfr_part, pr.unit_price
+FROM parts p
+LEFT JOIN prices pr
+  ON pr.lcsc_code = p.lcsc_code
+WHERE p.lcsc_code = 'C8287'
+  AND pr.qty_from = (
+    SELECT MIN(qty_from)
+    FROM prices
+    WHERE lcsc_code = p.lcsc_code
+  );
 ```
 
-### Working with JSON fields
-
-SQLite's `json_extract()` function can query the JSON columns directly.
+### Find in-stock basic 0402 resistors
 
 ```sql
--- Get the unit price at qty 1 for a part
-SELECT 'C' || lcsc AS lcsc_code, mfr,
-       json_extract(price, '$[0].price') AS unit_price
-FROM v_components
-WHERE lcsc = 7063;
-
--- Find 10kΩ resistors using the extra.attributes field
-SELECT 'C' || lcsc AS lcsc_code, mfr, package, stock,
-       json_extract(extra, '$.attributes.Resistance') AS resistance
-FROM v_components
-WHERE subcategory = 'Chip Resistor - Surface Mount'
-  AND json_extract(extra, '$.attributes.Resistance') LIKE '%10k%'
+SELECT lcsc_code, mfr_part, description, stock
+FROM parts
+WHERE package LIKE '%0402%'
+  AND library_type = 'base'
   AND stock > 0
 ORDER BY stock DESC
 LIMIT 20;
-
--- Find capacitors rated above a certain voltage
-SELECT 'C' || lcsc AS lcsc_code, mfr, description, package, stock
-FROM v_components
-WHERE category = 'Capacitors'
-  AND json_extract(extra, '$.attributes') IS NOT NULL
-  AND stock > 0
-LIMIT 50;
 ```
 
-### Price analysis
+### Filter on parsed attributes
 
 ```sql
--- Cheapest basic parts by unit price (qty 1), in stock
-SELECT 'C' || lcsc AS lcsc_code, category, subcategory, mfr, description,
-       json_extract(price, '$[0].price') AS unit_price,
-       stock
-FROM v_components
-WHERE basic = 1
-  AND stock > 0
-  AND json_extract(price, '$[0].price') IS NOT NULL
-ORDER BY CAST(json_extract(price, '$[0].price') AS REAL) ASC
-LIMIT 50;
-
--- Parts with deepest volume discount
-SELECT 'C' || lcsc AS lcsc_code, mfr, description,
-       json_extract(price, '$[0].price') AS price_qty1,
-       json_extract(price, '$[-1].price') AS price_bulk,
-       ROUND(json_extract(price, '$[0].price') / json_extract(price, '$[-1].price'), 2) AS discount_ratio
-FROM v_components
-WHERE stock > 0
-  AND json_extract(price, '$[0].price') > 0
-  AND json_extract(price, '$[-1].price') > 0
-ORDER BY discount_ratio DESC
+SELECT p.lcsc_code, p.mfr_part, a.attr_value_raw
+FROM parts p
+JOIN attributes a ON a.lcsc_code = p.lcsc_code
+WHERE a.attr_name = 'Resistance'
+  AND a.attr_value_num >= 10000
+ORDER BY p.stock DESC
 LIMIT 20;
 ```
 
-### Staleness and update tracking
+### List recent analyses
 
 ```sql
--- When was the database last updated?
-SELECT datetime(MAX(last_update), 'unixepoch') AS newest_update,
-       datetime(MIN(last_update), 'unixepoch') AS oldest_update
-FROM components;
-
--- Components that have been out of stock for a long time
-SELECT 'C' || lcsc AS lcsc_code, mfr, description, stock,
-       datetime(last_on_stock, 'unixepoch') AS last_in_stock
-FROM v_components
-WHERE stock = 0
-  AND last_on_stock > 0
-ORDER BY last_on_stock ASC
+SELECT lcsc_code, method, model, created_at, cost_usd
+FROM analyses
+ORDER BY created_at DESC
 LIMIT 20;
 ```
 
 ### Summary statistics
 
 ```sql
--- Parts per top-level category
-SELECT category, COUNT(*) AS total,
-       SUM(CASE WHEN stock > 0 THEN 1 ELSE 0 END) AS in_stock,
-       SUM(CASE WHEN basic = 1 THEN 1 ELSE 0 END) AS basic_parts
-FROM v_components
-GROUP BY category
-ORDER BY total DESC;
-
--- Manufacturer market share (by number of listed parts)
-SELECT manufacturer, COUNT(*) AS parts
-FROM v_components
-GROUP BY manufacturer
-ORDER BY parts DESC
-LIMIT 30;
+SELECT
+  (SELECT COUNT(*) FROM parts) AS parts,
+  (SELECT COUNT(*) FROM attributes) AS attributes,
+  (SELECT COUNT(*) FROM analyses) AS analyses,
+  (SELECT COUNT(DISTINCT category) FROM parts) AS categories;
 ```
 
-## Using with Python
+## Using It From Python
 
 ```python
 import sqlite3
-import json
 
-db = sqlite3.connect("cache.sqlite3")
+db = sqlite3.connect("parts.db")
 db.row_factory = sqlite3.Row
 
-# Query a specific part
-row = db.execute("SELECT * FROM v_components WHERE lcsc = ?", (7063,)).fetchone()
-print(f"C{row['lcsc']}: {row['mfr']} - {row['description']}")
-print(f"  Category: {row['category']} > {row['subcategory']}")
-print(f"  Stock: {row['stock']}, Basic: {bool(row['basic'])}")
-print(f"  Price tiers: {json.loads(row['price'])}")
+row = db.execute(
+    "SELECT lcsc_code, mfr_part, manufacturer, stock FROM parts WHERE lcsc_code = ?",
+    ("C8287",),
+).fetchone()
 
-extra = json.loads(row["extra"])
-if "attributes" in extra:
-    for key, val in extra["attributes"].items():
-        print(f"  {key}: {val}")
-
-# Bulk analysis example: export all in-stock basic resistors to CSV
-import csv
-cursor = db.execute("""
-    SELECT 'C' || lcsc AS lcsc, mfr, package, description, stock, price, extra
-    FROM v_components
-    WHERE subcategory = 'Chip Resistor - Surface Mount'
-      AND basic = 1 AND stock > 0
-""")
-with open("basic_resistors.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["LCSC", "MFR Part", "Package", "Description", "Stock", "Price_Qty1"])
-    for row in cursor:
-        prices = json.loads(row["price"])
-        price1 = prices[0]["price"] if prices else None
-        writer.writerow([row["lcsc"], row["mfr"], row["package"],
-                         row["description"], row["stock"], price1])
+if row:
+    print(f"{row['lcsc_code']} {row['mfr_part']} by {row['manufacturer']}")
+    print(f"Stock: {row['stock']}")
 ```
 
-## Indexes
+## Notes
 
-The database has two indexes for faster queries:
-- `components_category` on `components.category_id` -- speeds up category-based filtering
-- `components_manufacturer` on `components.manufacturer_id` -- speeds up manufacturer lookups
-
-For best performance when doing full-text searches on `description` or `mfr`, consider creating additional indexes or using SQLite FTS5.
+- This database is a cache, not a canonical source of truth.
+- `query`, `info`, `compare`, and project BOM enrichment all depend on it.
+- The CLI currently loads full part objects by joining through `parts`, `prices`, and `attributes` in Python rather than through SQL views.
+- See `docs/review-issues.md` for open design and performance follow-ups around query behavior.

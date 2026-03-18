@@ -192,9 +192,8 @@ def info(lcsc_code, fmt):
 
 @cli.command()
 @click.argument("lcsc_codes", nargs=-1, required=True)
-@click.option("--use-case", help="Describe use case for LLM comparison")
 @_format_option
-def compare(lcsc_codes, use_case, fmt):
+def compare(lcsc_codes, fmt):
     """Compare parts side-by-side."""
     db = get_db()
     try:

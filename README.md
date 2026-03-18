@@ -1,179 +1,227 @@
 # jlcpcb-tool
 
-CLI tool for researching JLCPCB/LCSC electronic components and managing PCB project BOMs. Search the catalog, cache parts locally, filter by parametric attributes, analyze datasheets with LLMs, and track component selections per project.
+`jlcpcb-tool` is a Python CLI for researching JLCPCB/LCSC parts and keeping a per-project BOM in version control. It solves two common problems: repeated part lookups and ad-hoc BOM notes. It does that by caching part data in a shared local SQLite database and storing project selections in `.jlcpcb/project.yaml`.
+
+## Requirements
+
+- Python `3.11+`
+- [`uv`](https://docs.astral.sh/uv/) for install and development
+- Network access for live catalog search
+- An OpenRouter API key only if you want datasheet analysis or summaries
 
 ## Install
 
 ```bash
-# Development (from repo)
+# Work on the repo
 uv sync
 
-# Global install (available everywhere as `jlcpcb`)
+# Install the CLI globally as `jlcpcb`
 uv tool install -e .
 ```
 
-## Setup
+## Configuration
 
-API keys and settings go in the global config file:
+Global config lives here:
 
-- **macOS:** `~/Library/Application Support/jlcpcb/config.yaml`
-- **Linux:** `~/.local/share/jlcpcb/config.yaml`
+- macOS: `~/Library/Application Support/jlcpcb/config.yaml`
+- Linux: `~/.local/share/jlcpcb/config.yaml`
+
+Minimal config:
 
 ```yaml
 openrouter_api_key: sk-or-v1-...
-llmlayer_api_key: llm_...
 ```
 
-Environment variables override config.yaml (prefix with `JLCPCB_`):
+Environment variables override config values:
+
 ```bash
 export JLCPCB_OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
-The parts database (`parts.db`) is stored in the same directory. It's shared across all projects — fetch once, use everywhere.
+The shared cache database is stored alongside the config as `parts.db`.
 
-## Quick Start
+## First Use
 
 ```bash
-# Search for components
+# 1. Search the live catalog
 jlcpcb search "10k 0402 resistor"
 
-# Fetch specific parts into cache
+# 2. Cache one or more exact parts
 jlcpcb fetch C8287 C25900
 
-# Query local cache with filters
+# 3. Query the local cache offline
 jlcpcb query --package 0402 --basic-only --attr "Resistance >= 10k"
 
-# View full part details
+# 4. Inspect or compare cached parts
 jlcpcb info C8287
-
-# Compare parts side-by-side
 jlcpcb compare C8287 C25900
 
-# Analyze datasheet with LLM
-jlcpcb analyze C8287 --prompt "What is the max power rating?"
+# 5. Analyze a cached part's datasheet with OpenRouter
+jlcpcb analyze C8287 --prompt "Summarize key ratings and limits"
 ```
+
+`info`, `compare`, `analyze`, and `datasheet` all work from the local cache. If a part is missing, run `jlcpcb fetch <code>` first.
 
 ## Project Workflow
 
-Projects track component selections (the BOM) in a `.jlcpcb/project.yaml` file inside your PCB project directory. This file is meant to be committed to git.
+Projects store their BOM in `.jlcpcb/project.yaml`, which is meant to be committed with the rest of the design files.
 
 ```bash
-# Initialize a project
 cd my-pcb-project
 jlcpcb init --name "my-board" --description "Motor driver board"
 
-# Select components into the BOM (auto-fetches if not cached)
+# Add parts to the BOM
 jlcpcb select C8287 --ref R1 --qty 2 --notes "10k pull-up"
-jlcpcb select C1525 --ref C1-C4 --qty 4 --notes "100nF bypass"
+jlcpcb select C1525 --ref C1 --qty 1 --notes "100nF bypass"
+jlcpcb select C1525 --ref C2 --qty 1 --notes "100nF bypass"
 
-# View the BOM
-jlcpcb bom                     # table
-jlcpcb bom --format json       # for agents
-jlcpcb bom --format csv        # for export
-jlcpcb bom --check             # refresh stock/prices from API
+# Review the BOM
+jlcpcb bom
+jlcpcb bom --format json
+jlcpcb bom --format csv
+jlcpcb bom --check
 
-# Project overview with warnings
+# Project summary
 jlcpcb status
 
-# Schematic changed — rename refs without re-selecting
-jlcpcb relabel R1 R1-R2
-
-# Remove a selection
-jlcpcb deselect C1-C4
+# Edit selections
+jlcpcb relabel R1 R3
+jlcpcb deselect C2
 ```
+
+`jlcpcb init` currently:
+
+- creates `.jlcpcb/project.yaml`
+- appends datasheet PDF ignore rules to `.gitignore`
 
 ### Project Resolution
 
-The tool finds project context in order:
-1. `--project <path>` CLI option
-2. `JLCPCB_PROJECT` environment variable
-3. Walk up from cwd looking for `.jlcpcb/project.yaml`
+Project context is resolved in this order:
 
-Commands that don't need a project (`search`, `fetch`, `query`, `info`, `compare`, `analyze`, `db`) work from anywhere.
+1. `--project <path>`
+2. `JLCPCB_PROJECT`
+3. walking up from the current directory to find `.jlcpcb/project.yaml`
 
 ## Commands
 
-### Research (no project needed)
+### Research commands
 
-| Command | Description |
-|---------|-------------|
-| `search <keyword>` | Search JLCPCB API, cache + display results |
-| `fetch <codes>...` | Fetch specific part(s) by LCSC code |
-| `query [keyword]` | Query local DB only (no API calls) |
-| `info <code>` | Full detail view of a cached part |
-| `compare <codes>...` | Side-by-side comparison table |
-| `analyze <code>` | LLM datasheet analysis |
-| `db stats` | Database statistics |
-| `db clear` | Clear all cached data |
+| Command | Notes |
+|---------|-------|
+| `search <keyword>` | Live JLCPCB search, results are cached locally |
+| `fetch <codes>...` | Cache exact LCSC codes |
+| `query [keyword]` | Search the local cache only |
+| `info <code>` | Show one cached part |
+| `compare <codes>...` | Compare cached parts |
+| `analyze <code>` | Analyze one cached datasheet with OpenRouter |
+| `datasheet <codes>...` | Download PDFs and optionally generate markdown summaries |
+| `db stats` | Show cache statistics |
+| `db clear` | Clear the local cache |
 
-### Project (requires `.jlcpcb/project.yaml`)
+### Project commands
 
-| Command | Description |
-|---------|-------------|
-| `init` | Create `.jlcpcb/project.yaml` in current directory |
-| `select <code> --ref REF` | Add component to BOM (auto-fetches if needed) |
-| `deselect <ref>` | Remove component by reference designator |
-| `relabel <old> <new>` | Rename a reference designator |
-| `bom` | Display BOM enriched with cached part data |
-| `status` | Project overview with cost estimate and warnings |
+| Command | Notes |
+|---------|-------|
+| `init` | Create `.jlcpcb/project.yaml` in the current directory |
+| `select <code> --ref REF` | Add a BOM entry, fetching the part if needed |
+| `deselect <ref>` | Remove a BOM entry by reference |
+| `relabel <old> <new>` | Rename a BOM entry reference |
+| `bom` | Show the BOM with cached part data |
+| `status` | Show project summary, cost estimate, and warnings |
 
-## Common Options
+## Output Formats
 
-- `--format table|json|csv` — Output format (default: table)
-- `--project <path>` — Override project directory
-- `--package` — Filter by package (e.g., 0402, SOT-23)
-- `--min-stock N` — Minimum stock count
-- `--basic-only` — Basic parts only (no extra assembly fee)
-- `--preferred-only` — JLCPCB preferred parts only
-- `--max-price N` — Maximum unit price at qty 1
-- `--attr "Name op Value"` — Attribute filter (repeatable)
+Most research commands support `--format table|json|csv|markdown`.
 
-## Attribute Filters
+Commands that currently support `--format`:
 
-Filter syntax: `--attr "AttributeName operator value"`
+- `search`
+- `fetch`
+- `query`
+- `info`
+- `compare`
+- `analyze`
+- `bom`
+- `db stats`
 
-Operators: `>=`, `<=`, `>`, `<`, `=`, `!=`
-
-Values support SI prefixes: `10k` = 10000, `100n` = 1e-7, `4.7u` = 4.7e-6
-
-```bash
---attr "Resistance >= 10k"
---attr "Capacitance <= 100n"
---attr "Forward Current >= 100mA"
-```
-
-## Agent Integration
-
-All commands support `--format json` for machine consumption. JSON output uses a consistent envelope:
+Most JSON output uses this envelope:
 
 ```json
 {
   "status": "ok",
   "command": "search",
   "count": 5,
-  "results": [...]
+  "results": []
 }
 ```
 
-Project commands also output JSON:
+`bom --format json` is different. It returns `{ "status": "ok", "command": "bom", "data": [...] }`.
+
+`status` is text-only today.
+
+## Attribute Filters
+
+Filter syntax:
+
 ```bash
-jlcpcb bom --format json       # BOM with part data, stock, prices, warnings
-jlcpcb status                  # text summary (no JSON yet)
+--attr "AttributeName operator value"
 ```
 
-The `bom --check` flag refreshes all BOM parts from the API before display — useful for pre-order verification.
+Supported operators: `>=`, `<=`, `>`, `<`, `=`, `!=`
+
+Examples:
+
+```bash
+jlcpcb search "0402 resistor" --attr "Resistance >= 10k"
+jlcpcb query --attr "Capacitance <= 100n"
+jlcpcb search "RGB LED" --attr "Forward Current >= 100mA"
+```
+
+Values support SI prefixes such as `10k`, `100n`, and `4.7u`.
 
 ## Data Locations
 
-| What | Where |
-|------|-------|
-| Parts cache (SQLite) | `~/Library/Application Support/jlcpcb/parts.db` (macOS) |
-| Global config | `~/Library/Application Support/jlcpcb/config.yaml` |
-| Project BOM | `.jlcpcb/project.yaml` (in your project dir) |
+| What | Location |
+|------|----------|
+| Global config | `~/Library/Application Support/jlcpcb/config.yaml` on macOS, `~/.local/share/jlcpcb/config.yaml` on Linux |
+| Shared cache database | `parts.db` in the same global data directory |
+| Project BOM | `.jlcpcb/project.yaml` inside a PCB project |
+| Optional project docs | `docs/` inside your project |
+
+## Project Structure
+
+```text
+src/jlcpcb_tool/
+  api.py        HTTP client for JLCPCB search and detail endpoints
+  analysis.py   datasheet download and OpenRouter analysis
+  cli.py        Click command definitions and output orchestration
+  config.py     config and path handling
+  db.py         SQLite schema and persistence
+  output.py     table/json/csv/markdown formatters
+  project.py    project file and BOM handling
+  search.py     local cache query helpers
+```
+
+## Documentation
+
+- `docs/jlcpcb-tool-guide.md`: short agent-oriented usage guide
+- `docs/examples.md`: command examples
+- `docs/jlcpcb-api-internals.md`: current API notes and implementation boundaries
+- `docs/sqlite-database-guide.md`: local cache schema and query examples
+- `docs/review-issues.md`: review findings and next-step issue list
 
 ## Development
 
 ```bash
 uv sync
-uv run pytest tests/ -v
+uv run pytest -v
 ```
+
+## Contributing
+
+PRs are welcome. A good starting point is:
+
+1. run `uv sync`
+2. read `README.md` and the docs linked above
+3. run `uv run pytest -v`
+4. keep behavior changes reflected in the docs

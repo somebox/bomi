@@ -1,4 +1,6 @@
-# Plan: Project-Aware CLI Tool with Shared Part Cache
+# Historical Plan: Project-Aware CLI Tool with Shared Part Cache
+
+This file is an implementation-era planning note. Parts of it have been implemented, parts have drifted, and it should not be treated as the current user guide. For current behavior, use `README.md`. For open follow-up work, use `docs/review-issues.md`.
 
 ## Context
 

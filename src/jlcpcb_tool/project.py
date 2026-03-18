@@ -75,9 +75,7 @@ def _ref_sort_key(ref: str) -> tuple:
 
 
 def init_project(directory: Path, name: str, description: str = "") -> Project:
-    """Create .jlcpcb/project.yaml and copy agent guide to the project."""
-    import importlib.resources
-
+    """Create .jlcpcb/project.yaml for a project."""
     jlcpcb_dir = directory / ".jlcpcb"
     jlcpcb_dir.mkdir(parents=True, exist_ok=True)
 
@@ -89,19 +87,6 @@ def init_project(directory: Path, name: str, description: str = "") -> Project:
         path=directory,
     )
     save_project(project)
-
-    # Copy agent guide into project docs/
-    guide_dest = directory / "docs" / "jlcpcb-tool-guide.md"
-    if not guide_dest.exists():
-        try:
-            guide_src = importlib.resources.files("jlcpcb_tool").joinpath(
-                "jlcpcb-tool-guide.md"
-            )
-            guide_text = guide_src.read_text(encoding="utf-8")
-            guide_dest.parent.mkdir(parents=True, exist_ok=True)
-            guide_dest.write_text(guide_text, encoding="utf-8")
-        except (FileNotFoundError, TypeError):
-            pass  # guide not bundled, skip silently
 
     # Append datasheet PDF gitignore rule if .gitignore exists or create it
     gitignore_path = directory / ".gitignore"
