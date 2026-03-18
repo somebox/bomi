@@ -9,8 +9,6 @@ JLCPCB_SEARCH_URL = (
     "shoppingCart/smtGood/selectSmtComponentList"
 )
 
-LCSC_DETAIL_URL = "https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentDetail"
-
 HEADERS = {
     "Content-Type": "application/json",
     "Origin": "https://jlcpcb.com",
@@ -76,18 +74,3 @@ class JLCPCBClient:
         resp.raise_for_status()
         return resp.json()
 
-    def fetch_detail(self, lcsc_code: str) -> dict:
-        """Fetch extended detail for a specific part. Returns raw API response."""
-        self._throttle()
-        self._sync_xsrf_token()
-
-        # Strip C prefix if present for the API
-        code = lcsc_code.lstrip("C")
-
-        resp = self.session.post(
-            LCSC_DETAIL_URL,
-            json={"componentCode": f"C{code}"},
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.json()

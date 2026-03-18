@@ -267,7 +267,6 @@ def analyze_pdf(
 def analyze_part(
     db: Database,
     part: Part,
-    method: str = "openrouter",
     prompt: str = "Summarize the key specifications from this datasheet.",
     model: str | None = None,
     pdf_data: bytes | None = None,
@@ -278,7 +277,6 @@ def analyze_part(
     Args:
         db: Database instance for caching results.
         part: Part object with datasheet_url.
-        method: Analysis method ('openrouter' only for now).
         prompt: Analysis prompt.
         model: Override model name.
         pdf_data: Pre-downloaded PDF bytes. If None, downloads automatically.

@@ -35,6 +35,10 @@ class TestInitProject:
         assert project.name == "test"
         assert project.path == tmp_path
 
+    def test_does_not_create_bundled_guide(self, tmp_path):
+        init_project(tmp_path, name="test")
+        assert not (tmp_path / "docs" / "jlcpcb-tool-guide.md").exists()
+
 
 class TestLoadSaveProject:
     def test_round_trip(self, tmp_path):
@@ -79,7 +83,7 @@ class TestAddSelection:
     def test_duplicate_ref_rejected(self, tmp_path):
         project = init_project(tmp_path, name="test")
         add_selection(project, lcsc="C8287", ref="R1")
-        with pytest.raises(ValueError, match="already in BOM"):
+        with pytest.raises(ValueError, match="overlaps existing"):
             add_selection(project, lcsc="C9999", ref="R1")
 
     def test_multiple_selections_sorted(self, tmp_path):
@@ -91,6 +95,32 @@ class TestAddSelection:
         loaded = load_project(tmp_path)
         refs = [s.ref for s in loaded.selections]
         assert refs == ["C1", "R1", "U1"]
+
+    def test_add_range_canonical(self, tmp_path):
+        project = init_project(tmp_path, name="test")
+        sel = add_selection(project, lcsc="C1234", ref="u2-u4", quantity=3)
+        assert sel.ref == "U2-U4"
+
+    def test_add_range_quantity_must_match(self, tmp_path):
+        project = init_project(tmp_path, name="test")
+        with pytest.raises(ValueError, match="must be 3"):
+            add_selection(project, lcsc="C1234", ref="U2-U4", quantity=1)
+
+    def test_add_invalid_range_rejected(self, tmp_path):
+        project = init_project(tmp_path, name="test")
+        with pytest.raises(ValueError, match="Invalid reference designator"):
+            add_selection(project, lcsc="C1234", ref="U2-4", quantity=3)
+
+    def test_add_mixed_prefix_range_rejected(self, tmp_path):
+        project = init_project(tmp_path, name="test")
+        with pytest.raises(ValueError, match="one prefix"):
+            add_selection(project, lcsc="C1234", ref="U2-R4", quantity=3)
+
+    def test_add_overlapping_range_rejected(self, tmp_path):
+        project = init_project(tmp_path, name="test")
+        add_selection(project, lcsc="C1234", ref="U2-U4", quantity=3)
+        with pytest.raises(ValueError, match="overlaps existing U2-U4"):
+            add_selection(project, lcsc="C9999", ref="U3")
 
 
 class TestRemoveSelection:
@@ -105,6 +135,12 @@ class TestRemoveSelection:
         project = init_project(tmp_path, name="test")
         with pytest.raises(ValueError, match="not found"):
             remove_selection(project, "R99")
+
+    def test_remove_range(self, tmp_path):
+        project = init_project(tmp_path, name="test")
+        add_selection(project, lcsc="C8287", ref="U2-U4", quantity=3)
+        removed = remove_selection(project, "u2-u4")
+        assert removed.ref == "U2-U4"
 
 
 class TestRelabelSelection:
@@ -121,13 +157,32 @@ class TestRelabelSelection:
         project = init_project(tmp_path, name="test")
         add_selection(project, lcsc="C8287", ref="R1")
         add_selection(project, lcsc="C9999", ref="R2")
-        with pytest.raises(ValueError, match="already exists"):
+        with pytest.raises(ValueError, match="overlaps existing"):
             relabel_selection(project, "R1", "R2")
 
     def test_relabel_nonexistent(self, tmp_path):
         project = init_project(tmp_path, name="test")
         with pytest.raises(ValueError, match="not found"):
             relabel_selection(project, "R99", "R100")
+
+    def test_relabel_range(self, tmp_path):
+        project = init_project(tmp_path, name="test")
+        add_selection(project, lcsc="C8287", ref="U2-U4", quantity=3)
+        sel = relabel_selection(project, "U2-U4", "U5-U7")
+        assert sel.ref == "U5-U7"
+
+    def test_relabel_range_quantity_mismatch(self, tmp_path):
+        project = init_project(tmp_path, name="test")
+        add_selection(project, lcsc="C8287", ref="U2-U4", quantity=3)
+        with pytest.raises(ValueError, match="must be 2"):
+            relabel_selection(project, "U2-U4", "U3-U4")
+
+    def test_relabel_range_overlap(self, tmp_path):
+        project = init_project(tmp_path, name="test")
+        add_selection(project, lcsc="C8287", ref="U2-U4", quantity=3)
+        add_selection(project, lcsc="C9999", ref="U5")
+        with pytest.raises(ValueError, match="overlaps existing U5"):
+            relabel_selection(project, "U2-U4", "U3-U5")
 
 
 class TestResolveBom:

@@ -69,19 +69,7 @@ The CLI stores normalized results in `parts.db`.
 
 ## JLCPCB Detail API
 
-The codebase includes a client method for a detail endpoint:
-
-```text
-POST https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentDetail
-```
-
-Current status:
-
-- `src/jlcpcb_tool/api.py` implements `fetch_detail()`
-- the public CLI exposes `fetch --detail`
-- the current `fetch` command does not actually use the detail endpoint yet
-
-This means the detail API is currently a maintenance item, not a documented core workflow.
+The implementation currently does not call a dedicated detail endpoint in normal CLI workflows. Exact-part fetches still resolve through search + local matching.
 
 ## OpenRouter Integration
 

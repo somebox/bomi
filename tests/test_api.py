@@ -1,6 +1,6 @@
-"""Tests for API client (uses VCR cassettes when available)."""
+"""Tests for API client request handling."""
 
-import pytest
+from unittest.mock import MagicMock, patch
 
 from jlcpcb_tool.api import JLCPCBClient, JLCPCB_SEARCH_URL, HEADERS
 
@@ -18,14 +18,21 @@ class TestJLCPCBClient:
         # Just verify it doesn't crash constructing params
         # Actual HTTP tested via VCR or live
         assert callable(client.search)
-        assert callable(client.fetch_detail)
 
-    @pytest.mark.vcr()
-    def test_search_live(self):
-        """Live API test - only runs with VCR cassette or --disable-recording."""
+    @patch("jlcpcb_tool.api.requests.Session.post")
+    def test_search_response_shape(self, mock_post):
+        """Search should return parsed JSON payload from requests."""
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {
+            "code": 200,
+            "data": {"componentPageInfo": {"total": 1, "list": [{}]}},
+        }
+        mock_post.return_value = mock_resp
+
         client = JLCPCBClient()
         result = client.search("10k 0402 resistor", page_size=5)
         assert result["code"] == 200
         data = result["data"]["componentPageInfo"]
-        assert data["total"] > 0
-        assert len(data["list"]) <= 5
+        assert data["total"] == 1
+        assert len(data["list"]) == 1

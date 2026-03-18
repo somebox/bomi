@@ -5,14 +5,14 @@ import sys
 from pathlib import Path
 
 import click
+import requests
 
 from .api import JLCPCBClient
 from .config import find_project_dir, get_db_path
 from .db import Database
 from .normalize import get_search_metadata, normalize_search_response
 from .output import format_compare, format_envelope, format_part_detail, format_parts
-from .search import search_local
-from .units import parse_value
+from .search import parse_attr_filters, search_local
 
 
 def get_db() -> Database:
@@ -69,30 +69,43 @@ def _require_project(ctx) -> "Project":
 def search(keyword, package, min_stock, basic_only, preferred_only,
            max_price, attrs, limit, pages, fmt):
     """Search JLCPCB API for components."""
+    try:
+        attr_filters = parse_attr_filters(list(attrs))
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
     client = JLCPCBClient()
     db = get_db()
     all_parts = []
 
     try:
-        for page in range(1, pages + 1):
-            response = client.search(
-                keyword, page=page, page_size=limit,
-                basic_only=basic_only, preferred_only=preferred_only,
-            )
-            parts = normalize_search_response(response)
-            meta = get_search_metadata(response)
+        try:
+            for page in range(1, pages + 1):
+                response = client.search(
+                    keyword, page=page, page_size=limit,
+                    basic_only=basic_only, preferred_only=preferred_only,
+                )
+                parts = normalize_search_response(response)
+                meta = get_search_metadata(response)
 
-            for part in parts:
-                db.upsert_part(part)
-            all_parts.extend(parts)
+                for part in parts:
+                    db.upsert_part(part)
+                all_parts.extend(parts)
 
-            if not meta["has_next_page"]:
-                break
+                if not meta["has_next_page"]:
+                    break
+        except requests.RequestException as e:
+            click.echo(f"Error: JLCPCB search failed: {e}", err=True)
+            sys.exit(1)
+        except (KeyError, TypeError, ValueError) as e:
+            click.echo(f"Error: Invalid response from JLCPCB API: {e}", err=True)
+            sys.exit(1)
 
         # Apply local filters
         filtered = _apply_local_filters(
             all_parts, package=package, min_stock=min_stock,
-            max_price=max_price, attrs=list(attrs),
+            max_price=max_price, attr_filters=attr_filters,
         )
 
         click.echo(format_parts(filtered, fmt, command="search"))
@@ -103,9 +116,8 @@ def search(keyword, package, min_stock, basic_only, preferred_only,
 @cli.command()
 @click.argument("lcsc_codes", nargs=-1, required=True)
 @click.option("--force", is_flag=True, help="Re-fetch even if cached")
-@click.option("--detail", is_flag=True, help="Fetch extended LCSC detail")
 @_format_option
-def fetch(lcsc_codes, force, detail, fmt):
+def fetch(lcsc_codes, force, fmt):
     """Fetch specific part(s) by LCSC code."""
     client = JLCPCBClient()
     db = get_db()
@@ -126,8 +138,15 @@ def fetch(lcsc_codes, force, detail, fmt):
                         continue
 
             # Search by exact LCSC code
-            response = client.search(code, page_size=5)
-            parts = normalize_search_response(response)
+            try:
+                response = client.search(code, page_size=5)
+                parts = normalize_search_response(response)
+            except requests.RequestException as e:
+                click.echo(f"Error: Failed to fetch {code}: {e}", err=True)
+                sys.exit(1)
+            except (KeyError, TypeError, ValueError) as e:
+                click.echo(f"Error: Invalid response while fetching {code}: {e}", err=True)
+                sys.exit(1)
             match = next((p for p in parts if p.lcsc_code == code), None)
 
             if match:
@@ -244,7 +263,14 @@ def analyze(lcsc_code, prompt, model, pdf_engine, fmt):
             click.echo(f"Part {code} not found. Run 'jlcpcb fetch {code}' first.", err=True)
             sys.exit(1)
 
-        result = analyze_part(db, part, prompt=prompt, model=model, pdf_engine=pdf_engine)
+        try:
+            result = analyze_part(db, part, prompt=prompt, model=model, pdf_engine=pdf_engine)
+        except requests.RequestException as e:
+            click.echo(f"Error: Datasheet analysis request failed: {e}", err=True)
+            sys.exit(1)
+        except (KeyError, TypeError, ValueError) as e:
+            click.echo(f"Error: Invalid analysis response: {e}", err=True)
+            sys.exit(1)
 
         if "error" in result:
             click.echo(result["error"], err=True)
@@ -471,8 +497,15 @@ def select(ctx, lcsc_code, ref, qty, notes):
         if not part:
             click.echo(f"Fetching {code}...", err=True)
             client = JLCPCBClient()
-            response = client.search(code, page_size=5)
-            parts = normalize_search_response(response)
+            try:
+                response = client.search(code, page_size=5)
+                parts = normalize_search_response(response)
+            except requests.RequestException as e:
+                click.echo(f"Error: Failed to fetch {code}: {e}", err=True)
+                sys.exit(1)
+            except (KeyError, TypeError, ValueError) as e:
+                click.echo(f"Error: Invalid response while fetching {code}: {e}", err=True)
+                sys.exit(1)
             match = next((p for p in parts if p.lcsc_code == code), None)
             if match:
                 db.upsert_part(match)
@@ -541,8 +574,15 @@ def bom(ctx, check, fmt):
         try:
             for sel in project.selections:
                 if sel.lcsc:
-                    response = client.search(sel.lcsc, page_size=5)
-                    parts = normalize_search_response(response)
+                    try:
+                        response = client.search(sel.lcsc, page_size=5)
+                        parts = normalize_search_response(response)
+                    except requests.RequestException as e:
+                        click.echo(f"Error: BOM refresh failed for {sel.lcsc}: {e}", err=True)
+                        sys.exit(1)
+                    except (KeyError, TypeError, ValueError) as e:
+                        click.echo(f"Error: Invalid API data while refreshing {sel.lcsc}: {e}", err=True)
+                        sys.exit(1)
                     match = next((p for p in parts if p.lcsc_code == sel.lcsc), None)
                     if match:
                         db.upsert_part(match)
@@ -752,7 +792,7 @@ def _format_bom_markdown(project, bom_entries: list[dict]) -> str:
 
     for g in groups:
         part = g["part"]
-        anchor = (g["lcsc"] or _make_anchor(g["refs"][0])).lower()
+        anchor = _group_anchor(g)
         pkg = part.package if part else ""
         price = f"${part.prices[0].unit_price:.4f}" if part and part.prices else ""
         stock = _humanize_stock(part.stock) if part else ""
@@ -774,10 +814,11 @@ def _format_bom_markdown(project, bom_entries: list[dict]) -> str:
     for g in groups:
         part = g["part"]
         ref_label = g["ref_label"]
-        anchor = _make_anchor(g["refs"][0])
+        anchor = _group_anchor(g)
 
         lcsc_id = g["lcsc"] or ref_label
         lines.append("")
+        lines.append(f'<a id="{anchor}"></a>')
         lines.append(f"### {lcsc_id}")
         lines.append("")
 
@@ -835,7 +876,7 @@ def _apply_local_filters(
     package: str | None = None,
     min_stock: int | None = None,
     max_price: float | None = None,
-    attrs: list[str] | None = None,
+    attr_filters: list[tuple[str, str, float]] | None = None,
 ) -> list:
     """Apply local filters to a list of Part objects after API fetch."""
     result = parts
@@ -852,13 +893,8 @@ def _apply_local_filters(
             if p.prices and p.prices[0].unit_price <= max_price
         ]
 
-    if attrs:
-        for expr in attrs:
-            from .units import parse_filter_expr
-            parsed = parse_filter_expr(expr)
-            if parsed is None:
-                continue
-            attr_name, op, threshold = parsed
+    if attr_filters:
+        for attr_name, op, threshold in attr_filters:
             filtered = []
             for p in result:
                 attr = next(
@@ -882,3 +918,8 @@ def _compare(value: float, op: str, threshold: float) -> bool:
         "!=": lambda a, b: a != b,
     }
     return ops.get(op, lambda a, b: False)(value, threshold)
+
+
+def _group_anchor(group: dict) -> str:
+    """Stable anchor ID for a grouped BOM entry."""
+    return (group["lcsc"] or _make_anchor(group["refs"][0])).lower()

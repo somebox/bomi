@@ -12,10 +12,7 @@ This file captures the follow-up work found during a documentation, test, and de
 
 ### 2. Remove or implement dead CLI surfaces
 
-- `fetch --detail` is exposed but does not change behavior.
-- `JLCPCBClient.fetch_detail()` exists but is not used by the CLI.
-- `analysis.analyze_part(method=...)` accepts a method argument but always stores `openrouter`.
-- Goal: either implement these surfaces or remove them from the public interface.
+- Keep public CLI options aligned with real behavior and avoid exposing placeholder arguments.
 
 ### 3. Unify filter validation
 
@@ -88,7 +85,6 @@ This file captures the follow-up work found during a documentation, test, and de
 ### 13. Add tests for the current no-op or edge surfaces
 
 - Add tests that would catch:
-- `fetch --detail` doing nothing
 - broken markdown anchors
 - ambiguous or overlapping ref inputs
 - Goal: stop these behaviors from drifting silently.

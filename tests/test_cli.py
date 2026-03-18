@@ -4,6 +4,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
+import requests
 
 from jlcpcb_tool.cli import cli
 from jlcpcb_tool.db import Database
@@ -163,6 +164,24 @@ class TestSelect:
         assert result.exit_code != 0
         assert "No project" in result.output
 
+    def test_select_range_quantity_mismatch(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: patched_db.db_path)
+        result = runner.invoke(cli, ["select", "C8287", "--ref", "U2-U4", "--qty", "1"])
+        assert result.exit_code != 0
+        assert "must be 3" in result.output
+
+    def test_select_overlapping_ref(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("jlcpcb_tool.cli.get_db", lambda: Database(patched_db.db_path))
+        runner.invoke(cli, ["select", "C8287", "--ref", "U2-U4", "--qty", "3"])
+        result = runner.invoke(cli, ["select", "C8287", "--ref", "U3"])
+        assert result.exit_code != 0
+        assert "overlaps existing" in result.output
+
 
 class TestDeselect:
     def test_deselect(self, runner, patched_db, tmp_path, monkeypatch):
@@ -197,6 +216,15 @@ class TestRelabel:
         result = runner.invoke(cli, ["relabel", "R1", "R2"])
         assert result.exit_code == 0
         assert "R2" in result.output
+
+    def test_relabel_range(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: patched_db.db_path)
+        runner.invoke(cli, ["select", "C8287", "--ref", "U2-U4", "--qty", "3"])
+        result = runner.invoke(cli, ["relabel", "U2-U4", "U5-U7"])
+        assert result.exit_code == 0
+        assert "U5-U7" in result.output
 
 
 class TestBom:
@@ -245,6 +273,16 @@ class TestBom:
         result = runner.invoke(cli, ["bom"])
         assert result.exit_code != 0
 
+    def test_bom_markdown_has_anchor_links(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("jlcpcb_tool.project.get_db_path", lambda: patched_db.db_path)
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["bom", "--format", "markdown"])
+        assert result.exit_code == 0
+        assert "[R1](#c8287)" in result.output
+        assert '<a id="c8287"></a>' in result.output
+
 
 class TestStatus:
     def test_status(self, runner, patched_db, tmp_path, monkeypatch):
@@ -286,3 +324,35 @@ class TestSearch:
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["status"] == "ok"
+
+    @patch("jlcpcb_tool.cli.JLCPCBClient")
+    def test_search_invalid_attr_fails_before_api(self, mock_client_cls, runner, patched_db):
+        result = runner.invoke(cli, ["search", "10k", "--attr", "Resistance maybe 10k"])
+        assert result.exit_code != 0
+        assert "Invalid attribute filter" in result.output
+        mock_client_cls.assert_not_called()
+
+    @patch("jlcpcb_tool.cli.JLCPCBClient")
+    def test_search_api_error_translated(self, mock_client_cls, runner, patched_db):
+        mock_client = MagicMock()
+        mock_client.search.side_effect = requests.RequestException("boom")
+        mock_client_cls.return_value = mock_client
+        result = runner.invoke(cli, ["search", "10k"])
+        assert result.exit_code != 0
+        assert "JLCPCB search failed" in result.output
+
+
+class TestFetch:
+    @patch("jlcpcb_tool.cli.JLCPCBClient")
+    def test_fetch_api_error_translated(self, mock_client_cls, runner, patched_db):
+        mock_client = MagicMock()
+        mock_client.search.side_effect = requests.RequestException("boom")
+        mock_client_cls.return_value = mock_client
+        result = runner.invoke(cli, ["fetch", "C8287", "--force"])
+        assert result.exit_code != 0
+        assert "Failed to fetch C8287" in result.output
+
+    def test_fetch_no_detail_option(self, runner):
+        result = runner.invoke(cli, ["fetch", "--help"])
+        assert result.exit_code == 0
+        assert "--detail" not in result.output

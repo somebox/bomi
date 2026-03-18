@@ -5,6 +5,22 @@ from .models import Part
 from .units import parse_filter_expr
 
 
+def parse_attr_filters(
+    attr_exprs: list[str] | None = None,
+) -> list[tuple[str, str, float]]:
+    """Parse raw --attr expressions into normalized filters."""
+    attr_filters: list[tuple[str, str, float]] = []
+    if not attr_exprs:
+        return attr_filters
+
+    for expr in attr_exprs:
+        parsed = parse_filter_expr(expr)
+        if parsed is None:
+            raise ValueError(f"Invalid attribute filter: {expr}")
+        attr_filters.append(parsed)
+    return attr_filters
+
+
 def search_local(
     db: Database,
     keyword: str | None = None,
@@ -20,13 +36,7 @@ def search_local(
 
     attr_exprs: list of strings like "Resistance >= 10k"
     """
-    attr_filters = []
-    if attr_exprs:
-        for expr in attr_exprs:
-            parsed = parse_filter_expr(expr)
-            if parsed is None:
-                raise ValueError(f"Invalid attribute filter: {expr}")
-            attr_filters.append(parsed)
+    attr_filters = parse_attr_filters(attr_exprs)
 
     return db.query_parts(
         keyword=keyword,

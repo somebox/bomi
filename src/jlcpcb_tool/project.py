@@ -1,6 +1,5 @@
 """Project management: init, selections CRUD, BOM generation."""
 
-import re
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -9,6 +8,7 @@ import yaml
 
 from .config import get_db_path
 from .db import Database
+from .refs import normalize_ref, ref_count, ref_sort_key, refs_overlap
 
 
 @dataclass
@@ -57,8 +57,14 @@ def _selection_from_dict(d: dict) -> Selection:
         Alternative(lcsc=a["lcsc"], reason=a.get("reason", ""))
         for a in d.get("alternatives", [])
     ]
+    raw_ref = d["ref"]
+    try:
+        canonical_ref = normalize_ref(raw_ref)
+    except ValueError:
+        canonical_ref = raw_ref
+
     return Selection(
-        ref=d["ref"],
+        ref=canonical_ref,
         lcsc=d.get("lcsc"),
         quantity=d.get("quantity", 1),
         notes=d.get("notes", ""),
@@ -68,10 +74,10 @@ def _selection_from_dict(d: dict) -> Selection:
 
 def _ref_sort_key(ref: str) -> tuple:
     """Sort key for reference designators: alpha prefix, then numeric."""
-    m = re.match(r"([A-Za-z]+)(\d+)", ref)
-    if m:
-        return (m.group(1).upper(), int(m.group(2)))
-    return (ref.upper(), 0)
+    try:
+        return ref_sort_key(ref)
+    except ValueError:
+        return (ref.upper(), 0, 0)
 
 
 def init_project(directory: Path, name: str, description: str = "") -> Project:
@@ -161,12 +167,24 @@ def add_selection(
     notes: str = "",
 ) -> Selection:
     """Add a component selection to the project BOM."""
-    # Check for duplicate ref
-    existing = next((s for s in project.selections if s.ref == ref), None)
-    if existing:
-        raise ValueError(f"Reference {ref} already in BOM (LCSC: {existing.lcsc})")
+    canonical_ref = normalize_ref(ref)
+    if quantity < 1:
+        raise ValueError("Quantity must be >= 1")
 
-    sel = Selection(ref=ref, lcsc=lcsc, quantity=quantity, notes=notes)
+    expected_qty = ref_count(canonical_ref)
+    if expected_qty > 1 and quantity != expected_qty:
+        raise ValueError(
+            f"Quantity for range {canonical_ref} must be {expected_qty}, got {quantity}"
+        )
+
+    # Check overlap against existing refs/ranges.
+    for existing in project.selections:
+        if refs_overlap(existing.ref, canonical_ref):
+            raise ValueError(
+                f"Reference {canonical_ref} overlaps existing {existing.ref} (LCSC: {existing.lcsc})"
+            )
+
+    sel = Selection(ref=canonical_ref, lcsc=lcsc, quantity=quantity, notes=notes)
     project.selections.append(sel)
     save_project(project)
     return sel
@@ -174,26 +192,41 @@ def add_selection(
 
 def remove_selection(project: Project, ref: str) -> Selection:
     """Remove a selection by reference designator."""
+    canonical_ref = normalize_ref(ref)
     for i, sel in enumerate(project.selections):
-        if sel.ref == ref:
+        if sel.ref == canonical_ref:
             removed = project.selections.pop(i)
             save_project(project)
             return removed
-    raise ValueError(f"Reference {ref} not found in BOM")
+    raise ValueError(f"Reference {canonical_ref} not found in BOM")
 
 
 def relabel_selection(project: Project, old_ref: str, new_ref: str) -> Selection:
     """Rename a reference designator."""
-    # Check new ref doesn't conflict
-    if any(s.ref == new_ref for s in project.selections):
-        raise ValueError(f"Reference {new_ref} already exists in BOM")
+    canonical_old = normalize_ref(old_ref)
+    canonical_new = normalize_ref(new_ref)
 
     for sel in project.selections:
-        if sel.ref == old_ref:
-            sel.ref = new_ref
+        if sel.ref == canonical_old:
+            expected_qty = ref_count(canonical_new)
+            if expected_qty > 1 and sel.quantity != expected_qty:
+                raise ValueError(
+                    f"Quantity for range {canonical_new} must be {expected_qty}, got {sel.quantity}"
+                )
+
+            # Check new ref doesn't overlap other selections.
+            for existing in project.selections:
+                if existing is sel:
+                    continue
+                if refs_overlap(existing.ref, canonical_new):
+                    raise ValueError(
+                        f"Reference {canonical_new} overlaps existing {existing.ref}"
+                    )
+
+            sel.ref = canonical_new
             save_project(project)
             return sel
-    raise ValueError(f"Reference {old_ref} not found in BOM")
+    raise ValueError(f"Reference {canonical_old} not found in BOM")
 
 
 def resolve_bom(project: Project) -> list[dict]:
