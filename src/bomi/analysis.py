@@ -17,7 +17,7 @@ import re
 
 import requests
 
-from .config import get_secret
+from .config import get_config, get_secret
 from .db import Database
 from .models import Analysis, Part
 
@@ -289,9 +289,11 @@ def analyze_part(
 
     api_key = get_secret("openrouter_api_key")
     if not api_key:
-        return {"error": "openrouter_api_key not configured (set in config.yaml or JLCPCB_OPENROUTER_API_KEY)"}
+        from bomi.config import _global_config_path
+        config_path = _global_config_path()
+        return {"error": f"openrouter_api_key not configured (set in {config_path} or BOMI_OPENROUTER_API_KEY env var)"}
 
-    model = model or DEFAULT_MODEL
+    model = model or get_config("default_model", DEFAULT_MODEL)
 
     # Step 1: Get PDF bytes
     if pdf_data is None:

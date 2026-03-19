@@ -102,12 +102,16 @@ bomi query --attr "Resistance >= 1k" --attr "Resistance <= 100k" --basic-only
 # Cache a part, then inspect it
 bomi fetch C8287
 bomi info C8287
+bomi info R1
 
 # Compare cached parts
 bomi compare C8287 C25900
 
 # Force a refresh even if the part is recent
 bomi fetch C8287 --force
+
+# Bulk refresh all selected LCSC parts from active project
+bomi fetch --all --force
 ```
 
 ## Datasheets
@@ -129,6 +133,9 @@ bomi datasheet C8287 --pdf -o docs/datasheets/
 
 # Download PDF and generate a markdown summary (useful as agent context)
 bomi datasheet C8287 --pdf --summary -o docs/datasheets/
+
+# Bulk datasheet refresh for all selected project parts
+bomi datasheet --all --pdf --summary --force -o docs/datasheets/
 ```
 
 ## Project Workflow
@@ -158,10 +165,10 @@ bomi select C347356 --ref U2 --qty 1 --notes "LED driver, constant current"
 ### BOM review
 
 ```bash
-bomi bom
-bomi bom --check
-bomi bom --format csv
-bomi bom --format markdown
+bomi list
+bomi list --check
+bomi list --format csv
+bomi list --format markdown
 bomi status
 ```
 
@@ -169,7 +176,7 @@ bomi status
 
 ```bash
 # Via CLI flag
-bomi --project ~/Projects/my-board bom
+bomi --project ~/Projects/my-board list
 
 # Via environment variable
 export BOMI_PROJECT=~/Projects/my-board

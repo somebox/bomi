@@ -33,9 +33,11 @@ uv sync
 ```
 
 > **Note for asdf users:** `uv tool install` installs into uv's own tool environment, which may not be on `PATH` under all asdf-managed Python shims. If you get "No preset version installed for command bomi", run directly with:
+>
 > ```bash
 > uv run --directory /path/to/bomi bomi <command>
 > ```
+>
 > Set `BOMI_PROJECT` (see [Project Resolution](#project-resolution)) to avoid needing `--project` on every command.
 
 ## Configuration
@@ -45,7 +47,7 @@ Global config lives here:
 - macOS: `~/Library/Application Support/bomi/config.yaml`
 - Linux: `~/.local/share/bomi/config.yaml`
 
-Minimal config (see `secrets.yaml.example` in the repo):
+Minimal config (see `config.yaml.example` in the repo):
 
 ```yaml
 openrouter_api_key: sk-or-v1-...
@@ -95,10 +97,10 @@ bomi select C1525 --ref C1 --qty 1 --notes "100nF bypass"
 bomi select C1525 --ref C2 --qty 1 --notes "100nF bypass"
 
 # Review the BOM
-bomi bom
-bomi bom --format json
-bomi bom --format csv
-bomi bom --check
+bomi list
+bomi list --format json
+bomi list --format csv
+bomi list --check
 
 # Project summary
 bomi status
@@ -136,7 +138,7 @@ export BOMI_PROJECT=/path/to/my-pcb-project
 | `search <keyword>` | Live JLCPCB search, results are cached locally |
 | `fetch <codes>...` | Cache exact LCSC codes |
 | `query [keyword]` | Search the local cache only |
-| `info <code>` | Show one cached part |
+| `info <designator-or-code>` | Show one cached part by project designator (for example `R1`) or LCSC code |
 | `compare <codes>...` | Compare cached parts |
 | `analyze <code>` | Analyze one cached datasheet with OpenRouter |
 | `datasheet <codes>...` | Download PDFs and optionally generate markdown summaries |
@@ -151,7 +153,7 @@ export BOMI_PROJECT=/path/to/my-pcb-project
 | `select <code> --ref REF` | Add a BOM entry, fetching the part if needed |
 | `deselect <ref>` | Remove a BOM entry by reference |
 | `relabel <old> <new>` | Rename a BOM entry reference |
-| `bom` | Show the BOM with cached part data |
+| `list` | Show the BOM with cached part data (`bom` is an alias) |
 | `status` | Show project summary, cost estimate, and warnings |
 
 ## Output Formats
@@ -166,7 +168,7 @@ Commands that currently support `--format`:
 - `info`
 - `compare`
 - `analyze`
-- `bom`
+- `list`
 - `db stats`
 
 Most JSON output uses this envelope:
@@ -180,7 +182,7 @@ Most JSON output uses this envelope:
 }
 ```
 
-`bom --format json` is different. It returns `{ "status": "ok", "command": "bom", "data": [...] }`.
+`list --format json` and `bom --format json` both return `{ "status": "ok", "command": "...", "data": [...] }`.
 
 `status` is text-only today.
 

@@ -83,7 +83,7 @@ class TestAddSelection:
     def test_duplicate_ref_rejected(self, tmp_path):
         project = init_project(tmp_path, name="test")
         add_selection(project, lcsc="C8287", ref="R1")
-        with pytest.raises(ValueError, match="overlaps existing"):
+        with pytest.raises(ValueError, match="already exists"):
             add_selection(project, lcsc="C9999", ref="R1")
 
     def test_multiple_selections_sorted(self, tmp_path):

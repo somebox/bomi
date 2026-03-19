@@ -11,3 +11,11 @@
 # Required only for `bomi analyze` and `bomi datasheet --summary`.
 # Get a key at https://openrouter.ai/
 openrouter_api_key: sk-or-v1-...
+
+# Optional: default model for `bomi analyze` and `bomi datasheet --summary`.
+# Can be overridden per command with --model.
+# default_model: anthropic/claude-sonnet-4.6
+
+# Optional: default output directory for `bomi datasheet` when -o/--output is not set.
+# Relative paths are resolved from the active project root when available, else current directory.
+# datasheet_output_dir: docs/datasheets

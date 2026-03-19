@@ -2,6 +2,7 @@
 
 import json
 import pytest
+import yaml
 from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 import requests
@@ -51,6 +52,30 @@ class TestInfo:
         result = runner.invoke(cli, ["info", "C99999"])
         assert result.exit_code != 0
         assert "not found" in result.output
+
+    def test_info_by_designator(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.cli.get_db", lambda: Database(patched_db.db_path))
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["info", "R1"])
+        assert result.exit_code == 0
+        assert "C8287" in result.output
+        assert "YAGEO" in result.output
+
+    def test_info_designator_without_lcsc_rejected(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        project_yaml = tmp_path / ".bomi" / "project.yaml"
+        data = yaml.safe_load(project_yaml.read_text())
+        data["selections"] = [{"ref": "R1", "lcsc": None, "quantity": 1}]
+        project_yaml.write_text(yaml.safe_dump(data, sort_keys=False))
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.cli.get_db", lambda: Database(patched_db.db_path))
+        result = runner.invoke(cli, ["info", "R1"])
+        assert result.exit_code != 0
+        assert "has no selected LCSC part yet" in result.output
 
 
 class TestQuery:
@@ -182,6 +207,16 @@ class TestSelect:
         assert result.exit_code != 0
         assert "overlaps existing" in result.output
 
+    def test_select_duplicate_designator_rejected(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.cli.get_db", lambda: Database(patched_db.db_path))
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        assert result.exit_code != 0
+        assert "already exists" in result.output
+
 
 class TestDeselect:
     def test_deselect(self, runner, patched_db, tmp_path, monkeypatch):
@@ -273,6 +308,27 @@ class TestBom:
         result = runner.invoke(cli, ["bom"])
         assert result.exit_code != 0
 
+    def test_list_command(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["list", "--format", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["command"] == "list"
+        assert data["data"][0]["lcsc"] == "C8287"
+
+    def test_bom_alias_still_works(self, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+        result = runner.invoke(cli, ["bom", "--format", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["command"] == "bom"
+
     def test_bom_markdown_has_anchor_links(self, runner, patched_db, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         runner.invoke(cli, ["init", "--name", "test"])
@@ -356,3 +412,90 @@ class TestFetch:
         result = runner.invoke(cli, ["fetch", "--help"])
         assert result.exit_code == 0
         assert "--detail" not in result.output
+
+    @patch("bomi.cli.JLCPCBClient")
+    def test_fetch_all_from_project(self, mock_client_cls, runner, patched_db, tmp_path, monkeypatch, sample_search_response):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.cli.get_db", lambda: Database(patched_db.db_path))
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+
+        mock_client = MagicMock()
+        mock_client.search.return_value = sample_search_response
+        mock_client_cls.return_value = mock_client
+
+        result = runner.invoke(cli, ["fetch", "--all", "--force"])
+        assert result.exit_code == 0
+        assert "Fetching 1 part(s)..." in result.output
+        assert "[1/1] C8287" in result.output
+        assert "C8287" in result.output
+        mock_client.search.assert_called_once()
+
+
+class TestDatasheet:
+    def test_datasheet_help_has_force(self, runner):
+        result = runner.invoke(cli, ["datasheet", "--help"])
+        assert result.exit_code == 0
+        assert "--force" in result.output
+        assert "--summarize" in result.output
+
+    @patch("bomi.analysis.download_pdf")
+    def test_datasheet_all_force_redownloads(self, mock_download_pdf, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        output_dir = tmp_path / "datasheets"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.cli.get_db", lambda: Database(patched_db.db_path))
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+
+        existing_pdf = output_dir / "RC0402FR-0710KL_C8287.pdf"
+        existing_pdf.write_bytes(b"%PDF-1.4 existing")
+        mock_download_pdf.return_value = b"%PDF-1.4 refreshed"
+
+        result = runner.invoke(cli, ["datasheet", "--all", "--pdf", "--force", "-o", str(output_dir)])
+        assert result.exit_code == 0
+        assert "[1/1] C8287" in result.output
+        mock_download_pdf.assert_called_once()
+        assert existing_pdf.read_bytes() == b"%PDF-1.4 refreshed"
+
+    @patch("bomi.analysis.analyze_part")
+    @patch("bomi.analysis.download_pdf")
+    def test_datasheet_all_summary_skips_existing_without_force(
+        self, mock_download_pdf, mock_analyze_part, runner, patched_db, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        output_dir = tmp_path / "datasheets"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        runner.invoke(cli, ["init", "--name", "test"])
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        monkeypatch.setattr("bomi.cli.get_db", lambda: Database(patched_db.db_path))
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1"])
+
+        existing_md = output_dir / "RC0402FR-0710KL_C8287.md"
+        existing_md.write_text("# existing summary\n")
+
+        result = runner.invoke(cli, ["datasheet", "--all", "--summarize", "-o", str(output_dir)])
+        assert result.exit_code == 0
+        assert "Summary exists" in result.output
+        mock_download_pdf.assert_not_called()
+        mock_analyze_part.assert_not_called()
+
+    @patch("bomi.analysis.download_pdf")
+    def test_datasheet_uses_configured_output_dir(self, mock_download_pdf, runner, patched_db, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("bomi.cli.get_db", lambda: Database(patched_db.db_path))
+        monkeypatch.setattr(
+            "bomi.cli.get_config",
+            lambda key, default=None: "my-datasheets" if key == "datasheet_output_dir" else default,
+        )
+        mock_download_pdf.return_value = b"%PDF-1.4 configured-dir"
+
+        result = runner.invoke(cli, ["datasheet", "C8287", "--pdf", "--force"])
+        assert result.exit_code == 0
+
+        pdf_path = tmp_path / "my-datasheets" / "RC0402FR-0710KL_C8287.pdf"
+        assert pdf_path.exists()

@@ -179,6 +179,10 @@ def add_selection(
 
     # Check overlap against existing refs/ranges.
     for existing in project.selections:
+        if existing.ref == canonical_ref:
+            raise ValueError(
+                f"Reference {canonical_ref} already exists (LCSC: {existing.lcsc})"
+            )
         if refs_overlap(existing.ref, canonical_ref):
             raise ValueError(
                 f"Reference {canonical_ref} overlaps existing {existing.ref} (LCSC: {existing.lcsc})"

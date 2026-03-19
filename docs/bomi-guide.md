@@ -1,6 +1,6 @@
 # bomi — Agent Guide
 
-Use `jlcpcb` for JLCPCB/LCSC part research and project BOM updates. Prefer it over manual website searches when you want repeatable, local-cache-backed results.
+Use `bomi` for JLCPCB/LCSC part research and project BOM updates. Prefer it over manual website searches when you want repeatable, local-cache-backed results.
 
 > This guide is also available at [somebox.github.io/bomi/guide.html](https://somebox.github.io/bomi/guide.html).
 
@@ -10,8 +10,9 @@ Use `jlcpcb` for JLCPCB/LCSC part research and project BOM updates. Prefer it ov
 - `query` is local-cache only — fast and offline.
 - `info`, `compare`, `analyze`, and `datasheet` need the part in the local cache first — run `fetch` if needed.
 - `select` fetches the part automatically if it is not already cached.
-- `select`, `bom`, `status`, `deselect`, and `relabel` need project context (a `.bomi/project.yaml` in the tree).
-- `status` is text-only. `bom --format json` uses a different JSON shape than most other commands.
+- `select`, `list`/`bom`, `status`, `deselect`, and `relabel` need project context (a `.bomi/project.yaml` in the tree).
+- `fetch --all` and `datasheet --all` use selected parts from the active project BOM.
+- `status` is text-only. `list --format json` (and `bom --format json`) uses a different JSON shape than most other commands.
 
 ## Quick Reference
 
@@ -19,18 +20,21 @@ Use `jlcpcb` for JLCPCB/LCSC part research and project BOM updates. Prefer it ov
 |---------|---------|
 | `bomi search "keyword"` | Search the live JLCPCB catalog |
 | `bomi fetch CXXXXX` | Cache a specific part by LCSC code |
+| `bomi fetch --all` | Cache all selected LCSC parts from the active project BOM |
 | `bomi query "keyword"` | Search the local cache only |
-| `bomi info CXXXXX` | Show full details for one cached part |
+| `bomi info R1` | Show full details for the part selected at a designator |
+| `bomi info CXXXXX` | Show full details for one cached part by LCSC code |
 | `bomi compare CXXXXX CYYYYY` | Compare cached parts side-by-side |
 | `bomi analyze CXXXXX` | Analyze a cached datasheet with OpenRouter |
 | `bomi datasheet CXXXXX --pdf --summary -o dir/` | Download PDF and write a markdown summary |
+| `bomi datasheet --all --pdf --summary` | Process datasheets for all selected LCSC parts in the active project |
 | `bomi init` | Create `.bomi/project.yaml` in the current directory |
 | `bomi select CXXXXX --ref U1` | Add a BOM entry (fetches if not cached) |
 | `bomi deselect U1` | Remove a BOM entry by reference |
 | `bomi relabel R1 R3` | Rename a BOM reference |
-| `bomi bom` | Show the full BOM with pricing and stock |
-| `bomi bom --check` | Refresh BOM stock and pricing from live catalog |
-| `bomi bom --format json` | Export BOM as JSON |
+| `bomi list` | Show the full BOM with pricing and stock (`bom` is an alias) |
+| `bomi list --check` | Refresh BOM stock and pricing from live catalog |
+| `bomi list --format json` | Export BOM as JSON |
 | `bomi status` | Show project summary with cost estimate and warnings |
 | `bomi db stats` | Show local cache statistics |
 
@@ -42,6 +46,7 @@ Use `jlcpcb` for JLCPCB/LCSC part research and project BOM updates. Prefer it ov
 bomi search "buck converter 3.3V"
 bomi fetch C9865
 bomi info C9865
+bomi info U3
 bomi compare C9865 C28023
 ```
 
@@ -66,8 +71,8 @@ bomi init --name "My Board" --description "Description here"
 bomi select C9865 --ref U3 --qty 1 --notes "3.3V buck, chosen for low quiescent current"
 bomi select C8678 --ref D3 --qty 1 --notes "catch diode"
 
-bomi bom
-bomi bom --check
+bomi list
+bomi list --check
 bomi status
 ```
 
@@ -77,6 +82,8 @@ bomi status
 bomi fetch C9865
 bomi analyze C9865
 bomi analyze C9865 --prompt "What is the enable pin threshold voltage?"
+bomi fetch --all --force
+bomi datasheet --all --pdf --summary --force -o docs/datasheets/
 bomi datasheet C9865 --pdf --summary -o docs/datasheets/
 ```
 
@@ -97,7 +104,7 @@ Most commands support `--format table|json|csv|markdown`. JSON uses this envelop
 }
 ```
 
-`bom --format json` is different — it uses `data` instead of `results`:
+`list --format json` (and `bom --format json`) is different — it uses `data` instead of `results`:
 
 ```json
 {
@@ -121,11 +128,56 @@ Project context is resolved in this order:
 
 If running from outside the project tree (e.g. via `uv run --directory`), set `BOMI_PROJECT` to avoid needing `--project` on every command.
 
+## Configuration (project.yaml + global options)
+
+### Project file: `.bomi/project.yaml`
+
+`project.yaml` is project-local and should usually be committed to git. It stores project metadata and selected parts:
+
+```yaml
+name: my-board
+description: Motor driver board
+created: "2026-03-19"
+selections:
+  - ref: U3
+    lcsc: C9865
+    quantity: 1
+    notes: 3.3V buck regulator
+```
+
+Core fields:
+- `name`, `description`, `created`
+- `selections[]` entries with `ref`, `lcsc`, `quantity`, `notes` (and optional `alternatives`)
+
+### Global config: `config.yaml`
+
+Global config lives at:
+- macOS: `~/Library/Application Support/bomi/config.yaml`
+- Linux: `~/.local/share/bomi/config.yaml`
+
+Relevant keys:
+
+```yaml
+openrouter_api_key: sk-or-v1-...
+default_model: anthropic/claude-sonnet-4.6
+datasheet_output_dir: docs/datasheets
+```
+
+How they are used:
+- `openrouter_api_key`: required for `analyze` and `datasheet --summary/--summarize`
+- `default_model`: default model for summaries/analyze when `--model` is not provided
+- `datasheet_output_dir`: default output directory for `bomi datasheet` when `-o/--output` is not provided
+
+Env vars override config values:
+- `BOMI_OPENROUTER_API_KEY`
+- `BOMI_DEFAULT_MODEL`
+- `BOMI_DATASHEET_OUTPUT_DIR`
+
 ## Good Defaults
 
 - Run `fetch` before `info`, `compare`, `analyze`, or `datasheet`.
 - Use `query` when you want fast, offline, reproducible filtering from the local cache.
-- Use `bom --check` before ordering to refresh stock and pricing from the live catalog.
+- Use `list --check` before ordering to refresh stock and pricing from the live catalog.
 - Use one reference per BOM line when possible (`R1`, `U2`, etc.).
 - Add `--notes` to selections to record why a part was chosen — this context persists in the project file.
 - Commit `.bomi/project.yaml` with every BOM change so decisions are tracked in git.

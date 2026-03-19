@@ -83,7 +83,7 @@ Key points:
 ## Global Config (`~/.local/share/bomi/config.yaml`)
 
 ```yaml
-# API keys (migrated from secrets.yaml in repo root)
+# API keys (config.yaml in user data dir, see config.yaml.example)
 openrouter_api_key: sk-or-v1-...
 llmlayer_api_key: llm_...
 
@@ -216,7 +216,7 @@ claude "find a cheaper alternative to U1"
 6. **project.py** — `resolve_bom`, `generate_bom_output`, `check_bom_stock`
 7. **cli.py** — `bom`, `status` commands
 8. Migrate RGB spotlight to `examples/rgb-spotlight/`
-9. Cleanup: remove `data/`, update `.gitignore`, migrate `secrets.yaml` handling
+9. Cleanup: remove `data/`, update `.gitignore` (secrets→config migration done; use config.yaml.example)
 10. **tests/test_project.py** + update **README.md**
 
 ## Verification

@@ -162,6 +162,33 @@ class TestAnalyzePart:
         assert "error" in result
         assert "Could not download" in result["error"]
 
+    @patch("bomi.analysis.requests.post")
+    @patch("bomi.analysis.download_pdf")
+    @patch("bomi.analysis.get_config")
+    @patch("bomi.analysis.get_secret")
+    def test_analyze_uses_default_model_from_config(
+        self, mock_secret, mock_get_config, mock_download, mock_post,
+        tmp_db, part_with_datasheet
+    ):
+        mock_secret.return_value = "test-key"
+        mock_get_config.return_value = "openai/gpt-4.1"
+        mock_download.return_value = FAKE_PDF
+
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
+
+        tmp_db.upsert_part(part_with_datasheet)
+        result = analyze_part(tmp_db, part_with_datasheet)
+
+        assert result["model"] == "openai/gpt-4.1"
+        assert mock_post.call_args.kwargs["json"]["model"] == "openai/gpt-4.1"
+
 
 class TestEstimateCost:
     def test_zero_usage(self):

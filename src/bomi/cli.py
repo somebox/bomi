@@ -8,7 +8,7 @@ import click
 import requests
 
 from .api import JLCPCBClient
-from .config import find_project_dir, get_db_path
+from .config import find_project_dir, get_config, get_db_path
 from .db import Database
 from .normalize import get_search_metadata, normalize_search_response
 from .output import format_compare, format_envelope, format_part_detail, format_parts
@@ -129,20 +129,48 @@ def search(keyword, package, min_stock, basic_only, preferred_only,
 
 
 @cli.command()
-@click.argument("lcsc_codes", nargs=-1, required=True)
+@click.argument("lcsc_codes", nargs=-1, required=False)
+@click.option("--all", "fetch_all", is_flag=True, help="Fetch all selected LCSC parts from the current project")
 @click.option("--force", is_flag=True, help="Re-fetch even if cached")
 @_format_option
-def fetch(lcsc_codes, force, fmt):
-    """Fetch specific part(s) by LCSC code."""
+@click.pass_context
+def fetch(ctx, lcsc_codes, fetch_all, force, fmt):
+    """Fetch specific part(s) by LCSC code, or all parts in the active project."""
+    if fetch_all and lcsc_codes:
+        click.echo("Error: Use either explicit LCSC codes or --all, not both.", err=True)
+        sys.exit(1)
+
+    if fetch_all:
+        project = _require_project(ctx)
+        resolved = []
+        for sel in project.selections:
+            if sel.lcsc and sel.lcsc not in resolved:
+                resolved.append(sel.lcsc)
+        if not resolved:
+            click.echo("No selected LCSC parts found in project BOM.", err=True)
+            sys.exit(1)
+        lcsc_codes = tuple(resolved)
+    elif not lcsc_codes:
+        click.echo("Error: Provide one or more LCSC codes, or use --all.", err=True)
+        sys.exit(1)
+
+    total = len(lcsc_codes)
+    batch_mode = fetch_all or total > 1
+    if batch_mode:
+        click.echo(f"Fetching {total} part(s)...", err=True)
+
     client = JLCPCBClient()
     db = get_db()
     fetched = []
 
     try:
-        for code in lcsc_codes:
+        for idx, code in enumerate(lcsc_codes, start=1):
             code = code.upper()
             if not code.startswith("C"):
                 code = f"C{code}"
+
+            if batch_mode:
+                click.echo(f"[{idx}/{total}] {code}", err=True, nl=False)
 
             if not force:
                 age = db.get_part_age_hours(code)
@@ -150,6 +178,8 @@ def fetch(lcsc_codes, force, fmt):
                     part = db.get_part(code)
                     if part:
                         fetched.append(part)
+                        if batch_mode:
+                            click.echo(" (cached)", err=True)
                         continue
 
             # Search by exact LCSC code
@@ -167,7 +197,11 @@ def fetch(lcsc_codes, force, fmt):
             if match:
                 db.upsert_part(match)
                 fetched.append(match)
+                if batch_mode:
+                    click.echo(" (updated)", err=True)
             else:
+                if batch_mode:
+                    click.echo(" (not found)", err=True)
                 click.echo(f"Part {code} not found.", err=True)
 
         click.echo(format_parts(fetched, fmt, command="fetch"))
@@ -204,15 +238,39 @@ def query(keyword, package, min_stock, basic_only, preferred_only,
 
 
 @cli.command()
-@click.argument("lcsc_code")
+@click.argument("part_ref")
 @_format_option
-def info(lcsc_code, fmt):
-    """Show full detail of a cached part."""
+@click.pass_context
+def info(ctx, part_ref, fmt):
+    """Show full detail of a cached part by designator or LCSC code."""
+    from .project import load_project
+    from .refs import normalize_ref
+
     db = get_db()
     try:
-        code = lcsc_code.upper()
-        if not code.startswith("C"):
-            code = f"C{code}"
+        code = None
+
+        # Prefer a matching designator in the current project when available.
+        project_path = ctx.obj.get("project_path")
+        project_dir = find_project_dir(override=project_path)
+        if project_dir:
+            try:
+                canonical_ref = normalize_ref(part_ref)
+                project = load_project(project_dir)
+                selection = next((s for s in project.selections if s.ref == canonical_ref), None)
+                if selection:
+                    if not selection.lcsc:
+                        click.echo(f"Reference {canonical_ref} has no selected LCSC part yet.", err=True)
+                        sys.exit(1)
+                    code = selection.lcsc
+            except ValueError:
+                # Not a valid designator; treat as an LCSC code below.
+                pass
+
+        if code is None:
+            code = part_ref.upper()
+            if not code.startswith("C"):
+                code = f"C{code}"
 
         part = db.get_part(code)
         if not part:
@@ -312,19 +370,21 @@ def analyze(lcsc_code, prompt, model, pdf_engine, fmt):
 
 
 @cli.command()
-@click.argument("lcsc_codes", nargs=-1, required=True)
+@click.argument("lcsc_codes", nargs=-1, required=False)
+@click.option("--all", "fetch_all", is_flag=True, help="Process datasheets for all selected LCSC parts from the current project")
 @click.option("--output", "-o", default=None,
-              help="Output directory (default: project dir if active, else current dir)",
+              help="Output directory (default: docs/datasheets in project, else current dir)",
               type=click.Path())
+@click.option("--force", is_flag=True, help="Re-download PDF even if a local copy exists")
 @click.option("--pdf", "dl_pdf", is_flag=True, help="Download datasheet PDF")
-@click.option("--summary", "dl_summary", is_flag=True, help="Generate markdown summary via LLM")
+@click.option("--summary", "--summarize", "dl_summary", is_flag=True, help="Generate markdown summary via LLM")
 @click.option("--prompt", default=None, help="Custom analysis prompt for summary")
 @click.option("--model", default=None, help="Override model name for summary")
 @click.option("--pdf-engine", default="mistral-ocr",
               type=click.Choice(["mistral-ocr", "pdf-text", "native"]),
               help="PDF parsing engine (mistral-ocr for scanned/CJK, pdf-text for clean text, native for model-native)")
 @click.pass_context
-def datasheet(ctx, lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_engine):
+def datasheet(ctx, lcsc_codes, fetch_all, output, force, dl_pdf, dl_summary, prompt, model, pdf_engine):
     """Download datasheets as PDF and/or generate markdown summaries.
 
     Pipeline: download PDF → (optional) save to disk → send to LLM via
@@ -346,22 +406,58 @@ def datasheet(ctx, lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_en
     """
     from .analysis import analyze_part, download_pdf
 
+    if fetch_all and lcsc_codes:
+        click.echo("Error: Use either explicit LCSC codes or --all, not both.", err=True)
+        sys.exit(1)
+
+    if fetch_all:
+        project = _require_project(ctx)
+        resolved = []
+        for sel in project.selections:
+            if sel.lcsc and sel.lcsc not in resolved:
+                resolved.append(sel.lcsc)
+        if not resolved:
+            click.echo("No selected LCSC parts found in project BOM.", err=True)
+            sys.exit(1)
+        lcsc_codes = tuple(resolved)
+    elif not lcsc_codes:
+        click.echo("Error: Provide one or more LCSC codes, or use --all.", err=True)
+        sys.exit(1)
+
+    total = len(lcsc_codes)
+    batch_mode = fetch_all or total > 1
+
     if not dl_pdf and not dl_summary:
         dl_pdf = True  # default to PDF download if neither specified
 
     if output is None:
         project_dir = find_project_dir(override=ctx.obj.get("project_path") if ctx.obj else None)
-        output = str(project_dir) if project_dir else "."
+        configured_output = get_config("datasheet_output_dir")
+        if configured_output:
+            configured_path = Path(configured_output).expanduser()
+            if configured_path.is_absolute():
+                output = str(configured_path)
+            elif project_dir:
+                output = str(project_dir / configured_path)
+            else:
+                output = str(configured_path)
+        elif project_dir:
+            output = str(project_dir / "docs" / "datasheets")
+        else:
+            output = "."
 
     output_dir = Path(output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     db = get_db()
     try:
-        for lcsc_code in lcsc_codes:
+        for idx, lcsc_code in enumerate(lcsc_codes, start=1):
             code = lcsc_code.upper()
             if not code.startswith("C"):
                 code = f"C{code}"
+
+            if batch_mode:
+                click.echo(f"[{idx}/{total}] {code}", err=True)
 
             part = db.get_part(code)
             if not part:
@@ -374,12 +470,18 @@ def datasheet(ctx, lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_en
 
             safe_name = part.mfr_part.replace("/", "_").replace(" ", "_")
             pdf_path = output_dir / f"{safe_name}_{code}.pdf"
+            md_path = output_dir / f"{safe_name}_{code}.md"
+
+            if dl_summary and md_path.exists() and not force:
+                click.echo(f"{code}: Summary exists ({md_path.name}), skipping (use --force to refresh)")
+                continue
 
             # Step 1: Get PDF bytes (download or load from disk)
             pdf_data = None
 
-            # Use existing local PDF if present (may have been manually placed)
-            if pdf_path.exists():
+            # Use existing local PDF if present (may have been manually placed),
+            # unless --force requests a fresh download.
+            if pdf_path.exists() and not force:
                 pdf_data = pdf_path.read_bytes()
                 if pdf_data[:5] != b"%PDF-":
                     pdf_data = None  # not a valid PDF
@@ -404,7 +506,6 @@ def datasheet(ctx, lcsc_codes, output, dl_pdf, dl_summary, prompt, model, pdf_en
 
             # Step 2: Generate summary
             if dl_summary:
-                md_path = output_dir / f"{safe_name}_{code}.md"
                 analysis_prompt = prompt or (
                     "Provide a concise technical summary of this component. Include:\n"
                     "- Key specifications (voltage, current, temperature range)\n"
@@ -484,28 +585,21 @@ def clear():
 # ── About ────────────────────────────────────────────────────────────
 
 _LOGO_ASCII = """\
-                          @###???#@@
-                          @++#:;;###@@@
-                          ###@#@@@   #@@
-                @#%%#@                 @@
-               ##+::;%@@#??#@           @@
-               #?:;;:*#*::::?#           @@
-               @#+;++#+,:::;#@            @
-           ##%%??%?*??:::::?%%%#@@        @@
-     ,;#@ #%;,,,,?*,;::::::::::;+*%#@     @@
- ,;;*%?%?#;%#?+;::,:%*:::::::::::,:;*%@   @@
- %?%%%##?%%,, @@%?+:::::::::::::::::,:+#@ @@
- #?%#%%?#%%%+#    @%::::::::::::::::::,:%@#@
-:;#?%%%%%#?#@#@@ ###:::::::::::::::::::::%##
- :;#?%%%%%%%  #@@###;:::::::::::::::::::,+@#
-  ,+#?%%**:.@#    #@+,:::::::::::::::::::;@
-  ;. @+:,:  @@@@@@#@%:::::::::::::::::::,*@
-                    @%;,:::::::::::::::,+##
-                     @#?;:,,,:::::::,:;?@@
-                       @@%*++++;;;++*?#@
-                        #@@@@@@@@@@@@@
-                    @@@@@#  ##
-                    @     @@@\
+                                [=][___]--.
+                                            \
+                   ___        ___            |
+                  /   \      /   \           |
+                 |     \____/     |          |
+           ____.-'  .       .      \         |
+        /                           |        /
+        \_____                      \      /
+             \                      |    /
+              \                    |   /
+          \|/  \           ______     |  /
+        --[#]-- \         /      `----' /
+          /|\  _(________/             /
+                   /  / `-------------'
+                  /  /
 """
 
 
@@ -519,7 +613,7 @@ def about():
     click.echo("  Built by Jeremy Seitz. Hardware hacker, software generalist,")
     click.echo("  living in Switzerland. More at https://swiss.social/@somebox")
     click.echo()
-    click.echo("  Logo by Fern.")
+    click.echo("  Logo by fern__theplant")
     click.echo()
     click.echo("  Source: https://github.com/somebox/bomi")
     click.echo("  License: MIT")
@@ -629,12 +723,8 @@ def relabel(ctx, old_ref, new_ref):
         sys.exit(1)
 
 
-@cli.command()
-@click.option("--check", is_flag=True, help="Refresh BOM parts from API, flag issues")
-@_format_option
-@click.pass_context
-def bom(ctx, check, fmt):
-    """Display the project BOM."""
+def _display_project_bom(ctx, check, fmt, command_name):
+    """Display the project BOM for list/bom commands."""
     from .project import resolve_bom
 
     project = _require_project(ctx)
@@ -680,7 +770,7 @@ def bom(ctx, check, fmt):
                 row["stock"] = part.stock
                 row["price"] = part.prices[0].unit_price if part.prices else None
             rows.append(row)
-        click.echo(json.dumps({"status": "ok", "command": "bom", "data": rows}, indent=2))
+        click.echo(json.dumps({"status": "ok", "command": command_name, "data": rows}, indent=2))
 
     elif fmt == "csv":
         import csv
@@ -742,6 +832,24 @@ def bom(ctx, check, fmt):
             if entry["warnings"]:
                 for w in entry["warnings"]:
                     click.echo(f"  ⚠ {entry['ref']}: {w}", err=True)
+
+
+@cli.command(name="list")
+@click.option("--check", is_flag=True, help="Refresh BOM parts from API, flag issues")
+@_format_option
+@click.pass_context
+def list_bom(ctx, check, fmt):
+    """Display the project BOM (preferred command; bom is an alias)."""
+    _display_project_bom(ctx, check, fmt, command_name="list")
+
+
+@cli.command(name="bom")
+@click.option("--check", is_flag=True, help="Refresh BOM parts from API, flag issues")
+@_format_option
+@click.pass_context
+def bom(ctx, check, fmt):
+    """Display the project BOM (alias for list)."""
+    _display_project_bom(ctx, check, fmt, command_name="bom")
 
 
 @cli.command()
