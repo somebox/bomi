@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>bomi — CLI for agent-assisted circuit design</title>
-  <meta name="description" content="A CLI for searching JLCPCB/LCSC parts, managing a version-controlled BOM, and running AI datasheet analysis. Built for use with Claude Code, Copilot, and other AI agents.">
+  <meta name="description" content="A CLI for searching JLCPCB/LCSC parts, managing a version-controlled BOM in your project folder, and running AI datasheet analysis. Built for agent-assisted workflows with any EDA tool.">
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.css">
 </head>
 <body>
@@ -23,7 +24,7 @@
 <main>
 
   <!-- ── Hero ──────────────────────────────────────────────────── -->
-  <section class="hero" style="border-top:none">
+  <section class="hero">
     <div class="hero-text">
       <div class="section-label">bomi</div>
       <h1>bomi:</h1>
@@ -47,9 +48,12 @@
       </div>
       <div class="install-box">
         <span class="prompt">$</span>
-        <span>git clone github.com/somebox/bomi &amp;&amp; uv tool install -e .</span>
+        <div class="install-box-lines">
+          <span>git clone https://github.com/somebox/bomi.git</span>
+          <span>cd bomi &amp;&amp; uv tool install -e .</span>
+        </div>
       </div>
-      <p style="font-size:0.78rem;color:var(--text-faint);margin-top:0.6rem">
+      <p class="fine-print mt-2">
         Requires Python 3.11+ and <a href="https://docs.astral.sh/uv/" target="_blank">uv</a>.
         No JLCPCB account needed. OpenRouter key only required for datasheet analysis.
       </p>
@@ -91,20 +95,120 @@
           <span class="tag tag-blue">Cursor Agent</span>
           <span class="tag tag-blue">Aider</span>
         </div>
-        <p style="margin-top:1.25rem">
-          <a href="vibe.html" style="font-size:0.875rem">Getting started with AI-assisted design →</a>
+        <p class="stack-forward">
+          <a href="vibe.html">Getting started with AI-assisted design →</a>
         </p>
       </div>
       <div>
-        <div class="player-label">example agent prompts</div>
-        <div class="prompt-list">
-          <div class="prompt-item">Find a 3.3V buck converter, basic parts only, SOT-23 or smaller</div>
-          <div class="prompt-item">Compare C8287 and C25900 for a 10k pull-up on 3.3V GPIO</div>
-          <div class="prompt-item">Download the PT4115 datasheet and summarize the sense resistor formula</div>
-          <div class="prompt-item">Update the BOM: U1 = C347356, R1 = C8287 × 2, add notes</div>
-          <div class="prompt-item">Estimate BOM cost at 100 and 500 units, flag low-stock parts</div>
-          <div class="prompt-item">Find an alternative for C347356 if it goes out of stock</div>
+        <div class="player-label">example prompts</div>
+        <div class="prompt-bubbles" aria-label="Example user prompts">
+          <p class="prompt-bubble">Find a 3.3V buck converter, basic parts only, SOT-23 or smaller</p>
+          <p class="prompt-bubble">Compare C8287 and C25900 for a 10k pull-up on 3.3V GPIO</p>
+          <p class="prompt-bubble">Download the PT4115 datasheet and summarize the sense resistor formula</p>
+          <p class="prompt-bubble">Update the BOM: U1 = C347356, R1 = C8287 × 2, add notes</p>
+          <p class="prompt-bubble">Estimate BOM cost at 100 and 500 units, flag low-stock parts</p>
+          <p class="prompt-bubble">Find an alternative for C347356 if it goes out of stock</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Workflow ───────────────────────────────────────────────── -->
+  <section>
+    <div class="section-label">Workflow</div>
+    <div class="two-col two-col--workflow">
+      <div>
+        <h2>One folder per project, tracked in git</h2>
+        <p class="prose-small measure-readable">
+          bomi follows the <strong>version-controlled project</strong> practice: the folder where you keep schematics, notes, exports, and the rest of the design also holds your BOM
+          as <code>.bomi/project.yaml</code>, committed with everything else.
+        </p>
+        <p class="prose-small measure-readable">
+          Typical loop: research parts in the terminal, lock candidates into the YAML BOM, export markdown or CSV for reviews, refresh stock with <code>list --check</code> before you order. Commit, open a PR or push.
+        </p>
+        <p class="prose-small measure-readable">
+          The tool was inspired by
+          <a href="https://github.com/aklofas/kicad-happy" target="_blank" rel="noopener">kicad-happy</a>
+          (Claude Code skills centered on KiCad), but the scope here is smaller — <strong>components only</strong>:
+          one focused CLI for JLCPCB/LCSC search, selections, and datasheet helpers, independent of which EDA or layout workflow you use.
+          That makes it a straightforward fit for <strong>agent automation</strong>: agents run <code>bomi</code> while your CAD tools stay unchanged.
+        </p>
+      </div>
+      <div>
+        <article class="workflow-bom-preview" aria-label="Example BOM markdown output">
+          <header class="workflow-bom-cap">
+            <span class="workflow-bom-cmd">bomi list --format markdown</span>
+          </header>
+          <div class="workflow-bom-doc">
+            <h3 class="workflow-bom-h1">usb-led-flashlight</h3>
+            <p class="workflow-bom-lede">USB-C LED flashlight · PT4115 driver</p>
+            <p class="workflow-bom-summary"><strong>5 line items (5 unique parts), ~$1.85 estimated (qty 1)</strong></p>
+            <h4 class="workflow-bom-h2">BOM</h4>
+            <div class="workflow-bom-table-wrap">
+              <table class="workflow-bom-table">
+                <thead>
+                  <tr>
+                    <th>Ref</th>
+                    <th>Qty</th>
+                    <th>LCSC</th>
+                    <th>Package</th>
+                    <th>Note</th>
+                    <th class="num">Stock</th>
+                    <th class="num">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="ref">J1</span></td>
+                    <td>1</td>
+                    <td><code>C456012</code></td>
+                    <td>SMD</td>
+                    <td class="note">USB-C 6p power</td>
+                    <td class="num">412k</td>
+                    <td class="num price">$0.12</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ref">U1</span></td>
+                    <td>1</td>
+                    <td><code>C347356</code></td>
+                    <td>SOT89-5</td>
+                    <td class="note">PT4115 LED driver</td>
+                    <td class="num">128k</td>
+                    <td class="num price">$0.45</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ref">L1</span></td>
+                    <td>1</td>
+                    <td><code>C354577</code></td>
+                    <td>4030</td>
+                    <td class="note">47µH buck inductor</td>
+                    <td class="num">56k</td>
+                    <td class="num price">$0.28</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ref">D1</span></td>
+                    <td>1</td>
+                    <td><code>C8598</code></td>
+                    <td>SOD-123</td>
+                    <td class="note">Schottky catch</td>
+                    <td class="num warn">1.2k</td>
+                    <td class="num price">$0.06</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ref">LED1</span></td>
+                    <td>1</td>
+                    <td><code>C3015100</code></td>
+                    <td>3535</td>
+                    <td class="note">White LED</td>
+                    <td class="num">902k</td>
+                    <td class="num price">$0.94</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="workflow-bom-truncate">… <span class="workflow-bom-dim">details &amp; datasheet links below fold</span></p>
+          </div>
+        </article>
       </div>
     </div>
   </section>
@@ -113,43 +217,43 @@
   <section>
     <div class="section-label">What it does</div>
     <h2>From catalog search to committed BOM</h2>
-    <p style="max-width:560px">Search the live catalog, inspect parts, track selections in git, manage costs and lifecycle — all from the terminal.</p>
+    <p class="measure-readable">Search the live catalog, inspect parts, track selections in git, manage costs and lifecycle — all from the terminal.</p>
     <div class="feature-rows">
       <div class="feature-row">
         <div class="feature-name">Part research<small>search, fetch, inspect, compare</small></div>
         <div class="feature-desc">Live JLCPCB catalog search with attribute filtering by resistance, voltage, current, and more. Results are cached locally for offline access and fast re-querying.</div>
-        <pre class="feature-code">bomi search "buck 3.3V" --basic-only
+        <pre class="cmd feature-code"><code class="language-bash">bomi search "buck 3.3V" --basic-only
 bomi fetch C347356
-bomi compare C347356 C145837</pre>
+bomi compare C347356 C145837</code></pre>
       </div>
       <div class="feature-row">
         <div class="feature-name">Version-controlled BOM<small>init, select, bom, status</small></div>
         <div class="feature-desc">Selections live in <code>.bomi/project.yaml</code> alongside your design files. Every part addition, swap, or relabel is a reviewable git diff.</div>
-        <pre class="feature-code">bomi init --name "my-board"
+        <pre class="cmd feature-code"><code class="language-bash">bomi init --name "my-board"
 bomi select C347356 --ref U1
-git add .bomi &amp;&amp; git commit</pre>
+git add .bomi &amp;&amp; git commit</code></pre>
       </div>
       <div class="feature-row">
         <div class="feature-name">Cost management<small>status, list --check</small></div>
         <div class="feature-desc">Per-unit pricing at any quantity, BOM cost rollup, stock warnings, and live refresh from the catalog before ordering.</div>
-        <pre class="feature-code">bomi status
+        <pre class="cmd feature-code"><code class="language-bash">bomi status
 bomi list --check
-bomi list --format csv</pre>
+bomi list --format csv</code></pre>
       </div>
       <div class="feature-row">
         <div class="feature-name">Datasheet analysis<small>analyze, datasheet</small></div>
         <div class="feature-desc">Download PDFs and run AI analysis via OpenRouter. Get ratings, pin tables, and application notes as structured markdown. Requires an OpenRouter key.</div>
-        <pre class="feature-code">bomi analyze C347356 \
+        <pre class="cmd feature-code"><code class="language-bash">bomi analyze C347356 \
   --prompt "Summarize pin functions"
 bomi datasheet C347356 \
-  --pdf --summary -o docs/</pre>
+  --pdf --summary -o docs/</code></pre>
       </div>
     </div>
   </section>
 
   <!-- ── BOM demo ────────────────────────────────────────────────── -->
   <section>
-    <div class="two-col" style="grid-template-columns:1fr auto">
+    <div class="two-col two-col--player">
       <div>
         <div class="section-label">In action</div>
         <h2>BOM review and cost estimate</h2>
@@ -161,8 +265,8 @@ bomi datasheet C347356 \
           Run <code>list --check</code> before ordering to refresh from the live catalog.
           Export as CSV, JSON, or markdown for downstream tooling.
         </p>
-        <p style="margin-top:1.25rem">
-          <a href="examples.html" style="font-size:0.875rem">More examples →</a>
+        <p class="stack-forward">
+          <a href="examples.html">More examples →</a>
         </p>
       </div>
       <div>
@@ -178,23 +282,23 @@ bomi datasheet C347356 \
     <div class="two-col">
       <div>
         <h2>Install</h2>
-        <pre>git clone https://github.com/somebox/bomi
+        <pre class="cmd"><code class="language-bash">git clone https://github.com/somebox/bomi
 cd bomi
-uv tool install -e .</pre>
-        <p style="margin-top:0.9rem;font-size:0.85rem">For development (run tests etc.):</p>
-        <pre>uv sync
-uv run pytest -v</pre>
+uv tool install -e .</code></pre>
+        <p class="prose-small mt-4">For development (run tests etc.):</p>
+        <pre class="cmd"><code class="language-bash">uv sync
+uv run pytest -v</code></pre>
       </div>
       <div>
         <h2>Configure</h2>
-        <p style="font-size:0.85rem">
+        <p class="prose-small">
           Most commands work without any configuration. Add an OpenRouter key for datasheet analysis:
         </p>
-        <pre><span style="color:#8b949e"># macOS: ~/Library/Application Support/bomi/config.yaml
-# Linux: ~/.local/share/bomi/config.yaml</span>
+        <pre class="data-block"><code class="language-yaml"># macOS: ~/Library/Application Support/bomi/config.yaml
+# Linux: ~/.local/share/bomi/config.yaml
 
-openrouter_api_key: sk-or-v1-...</pre>
-        <p style="font-size:0.78rem;color:var(--text-faint);margin-top:0.6rem">
+openrouter_api_key: sk-or-v1-...</code></pre>
+        <p class="fine-print mt-2">
           Or set <code>BOMI_OPENROUTER_API_KEY</code> in your environment.
         </p>
       </div>
@@ -254,5 +358,7 @@ openrouter_api_key: sk-or-v1-...</pre>
     theme: 'monokai', fit: false, terminalFontSize: '11px', poster: 'npt:0:2'
   });
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
 </body>
 </html>

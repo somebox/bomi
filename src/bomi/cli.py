@@ -1,6 +1,5 @@
 """Click CLI commands."""
 
-import json
 import sys
 from pathlib import Path
 
@@ -8,10 +7,21 @@ import click
 import requests
 
 from .api import JLCPCBClient
+from .categories import resolve_category_for_search, validate_category_for_query
+from .filters import apply_post_fetch_filters
 from .config import find_project_dir, get_config, get_db_path
 from .db import Database
 from .normalize import get_search_metadata, normalize_search_response
-from .output import format_compare, format_envelope, format_part_detail, format_parts
+from .output import (
+    format_bom_csv,
+    format_bom_json,
+    format_bom_markdown,
+    format_bom_table,
+    format_compare,
+    format_envelope,
+    format_part_detail,
+    format_parts,
+)
 from .search import parse_attr_filters, search_local
 
 
@@ -80,15 +90,13 @@ def search(keyword, category, package, min_stock, basic_only, preferred_only,
     # The JLCPCB API only filters on subcategory-level names (those with a
     # parent).  If the user picks a top-level parent we show its children
     # so they can refine.
-    component_type = None
-    if category:
-        component_type = _resolve_category(category)
-
     client = JLCPCBClient()
-    db = get_db()
-    all_parts = []
+    with get_db() as db:
+        component_type = None
+        if category:
+            component_type = resolve_category_for_search(db, category)
 
-    try:
+        all_parts = []
         try:
             for page in range(1, pages + 1):
                 response = client.search(
@@ -113,7 +121,7 @@ def search(keyword, category, package, min_stock, basic_only, preferred_only,
             sys.exit(1)
 
         # Apply local filters
-        filtered = _apply_local_filters(
+        filtered = apply_post_fetch_filters(
             all_parts, package=package, min_stock=min_stock,
             max_price=max_price, attr_filters=attr_filters,
         )
@@ -139,8 +147,6 @@ def search(keyword, category, package, min_stock, basic_only, preferred_only,
             click.echo(hint, err=True)
 
         click.echo(format_parts(filtered, fmt, command="search"))
-    finally:
-        db.close()
 
 
 @cli.command()
@@ -175,10 +181,9 @@ def fetch(ctx, lcsc_codes, fetch_all, force, fmt):
         click.echo(f"Fetching {total} part(s)...", err=True)
 
     client = JLCPCBClient()
-    db = get_db()
     fetched = []
 
-    try:
+    with get_db() as db:
         for idx, code in enumerate(lcsc_codes, start=1):
             code = code.upper()
             if not code.startswith("C"):
@@ -220,8 +225,6 @@ def fetch(ctx, lcsc_codes, fetch_all, force, fmt):
                 click.echo(f"Part {code} not found.", err=True)
 
         click.echo(format_parts(fetched, fmt, command="fetch"))
-    finally:
-        db.close()
 
 
 @cli.command()
@@ -238,24 +241,21 @@ def fetch(ctx, lcsc_codes, fetch_all, force, fmt):
 def query(keyword, category, package, min_stock, basic_only, preferred_only,
           max_price, attrs, limit, fmt):
     """Query LOCAL database (no API calls)."""
-    # Validate --category against synced categories when available
-    if category:
-        _validate_category(category)
+    with get_db() as db:
+        if category:
+            validate_category_for_query(db, category)
 
-    db = get_db()
-    try:
-        results = search_local(
-            db, keyword=keyword, category=category, package=package,
-            min_stock=min_stock, basic_only=basic_only,
-            preferred_only=preferred_only, max_price=max_price,
-            attr_exprs=list(attrs), limit=limit,
-        )
-        click.echo(format_parts(results, fmt, command="query"))
-    except ValueError as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
-    finally:
-        db.close()
+        try:
+            results = search_local(
+                db, keyword=keyword, category=category, package=package,
+                min_stock=min_stock, basic_only=basic_only,
+                preferred_only=preferred_only, max_price=max_price,
+                attr_exprs=list(attrs), limit=limit,
+            )
+            click.echo(format_parts(results, fmt, command="query"))
+        except ValueError as e:
+            click.echo(f"Error: {e}", err=True)
+            sys.exit(1)
 
 
 @cli.command()
@@ -267,8 +267,7 @@ def info(ctx, part_ref, fmt):
     from .project import load_project
     from .refs import normalize_ref
 
-    db = get_db()
-    try:
+    with get_db() as db:
         code = None
 
         # Prefer a matching designator in the current project when available.
@@ -299,8 +298,6 @@ def info(ctx, part_ref, fmt):
             sys.exit(1)
 
         click.echo(format_part_detail(part, fmt))
-    finally:
-        db.close()
 
 
 @cli.command()
@@ -308,8 +305,7 @@ def info(ctx, part_ref, fmt):
 @_format_option
 def compare(lcsc_codes, fmt):
     """Compare parts side-by-side."""
-    db = get_db()
-    try:
+    with get_db() as db:
         parts = []
         for code in lcsc_codes:
             code = code.upper()
@@ -326,8 +322,6 @@ def compare(lcsc_codes, fmt):
             sys.exit(1)
 
         click.echo(format_compare(parts, fmt))
-    finally:
-        db.close()
 
 
 @cli.command()
@@ -352,8 +346,7 @@ def analyze(lcsc_code, prompt, model, pdf_engine, fmt):
     """
     from .analysis import analyze_part
 
-    db = get_db()
-    try:
+    with get_db() as db:
         code = lcsc_code.upper()
         if not code.startswith("C"):
             code = f"C{code}"
@@ -386,8 +379,6 @@ def analyze(lcsc_code, prompt, model, pdf_engine, fmt):
             click.echo(f"Cost: ${result.get('cost_usd', 0):.4f}")
             click.echo("")
             click.echo(result.get("response", ""))
-    finally:
-        db.close()
 
 
 @cli.command()
@@ -470,8 +461,7 @@ def datasheet(ctx, lcsc_codes, fetch_all, output, force, dl_pdf, dl_summary, pro
     output_dir = Path(output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    db = get_db()
-    try:
+    with get_db() as db:
         for idx, lcsc_code in enumerate(lcsc_codes, start=1):
             code = lcsc_code.upper()
             if not code.startswith("C"):
@@ -563,8 +553,6 @@ def datasheet(ctx, lcsc_codes, fetch_all, output, force, dl_pdf, dl_summary, pro
                 md_path.write_text(header + result.get("response", ""))
                 cost = result.get("cost_usd", 0)
                 click.echo(f" {md_path} (${cost:.4f}{chunk_info})")
-    finally:
-        db.close()
 
 
 @cli.group()
@@ -577,8 +565,7 @@ def db():
 @_format_option
 def stats(fmt):
     """Show database statistics."""
-    database = get_db()
-    try:
+    with get_db() as database:
         s = database.stats()
         if fmt == "json":
             click.echo(format_envelope("ok", "db stats", [s]))
@@ -587,20 +574,15 @@ def stats(fmt):
             click.echo(f"Attributes: {s['attributes']:,}")
             click.echo(f"Analyses:   {s['analyses']:,}")
             click.echo(f"Categories: {s['categories']:,}")
-    finally:
-        database.close()
 
 
 @db.command()
 @click.confirmation_option(prompt="Are you sure you want to clear all data?")
 def clear():
     """Clear all data from the database."""
-    database = get_db()
-    try:
+    with get_db() as database:
         database.clear()
         click.echo("Database cleared.")
-    finally:
-        database.close()
 
 
 # ── About ────────────────────────────────────────────────────────────
@@ -649,8 +631,7 @@ def sync(force):
     """Fetch and cache provider category data."""
     from .scrape import fetch_jlcpcb_categories
 
-    db = get_db()
-    try:
+    with get_db() as db:
         if not force:
             last = db.get_sync_time("jlcpcb")
             if last is not None:
@@ -678,16 +659,13 @@ def sync(force):
         top = sum(1 for c in cats if c["parent"] is None)
         sub = len(cats) - top
         click.echo(f"Synced {top} categories, {sub} subcategories.")
-    finally:
-        db.close()
 
 
 @cli.command()
 @click.argument("query", required=False, default=None)
 def categories(query):
     """List cached categories. Optionally filter by name."""
-    db = get_db()
-    try:
+    with get_db() as db:
         cats = db.get_categories()
         if not cats:
             click.echo(
@@ -743,8 +721,6 @@ def categories(query):
                 for child in children_by_parent.get(parent["name"], []):
                     cc = f" ({child['part_count']:,})" if child["part_count"] else ""
                     click.echo(f"  {child['name']}{cc}")
-    finally:
-        db.close()
 
 
 # ── New project commands ─────────────────────────────────────────────
@@ -785,8 +761,7 @@ def select(ctx, lcsc_code, ref, qty, notes):
         code = f"C{code}"
 
     # Ensure part is cached
-    db = get_db()
-    try:
+    with get_db() as db:
         part = db.get_part(code)
         if not part:
             click.echo(f"Fetching {code}...", err=True)
@@ -807,8 +782,6 @@ def select(ctx, lcsc_code, ref, qty, notes):
             else:
                 click.echo(f"Part {code} not found on JLCPCB.", err=True)
                 sys.exit(1)
-    finally:
-        db.close()
 
     try:
         sel = add_selection(project, lcsc=code, ref=ref, quantity=qty, notes=notes)
@@ -860,8 +833,7 @@ def _display_project_bom(ctx, check, fmt, command_name):
     if check:
         # Refresh all BOM parts from API
         client = JLCPCBClient()
-        db = get_db()
-        try:
+        with get_db() as db:
             for sel in project.selections:
                 if sel.lcsc:
                     try:
@@ -876,90 +848,23 @@ def _display_project_bom(ctx, check, fmt, command_name):
                     match = next((p for p in parts if p.lcsc_code == sel.lcsc), None)
                     if match:
                         db.upsert_part(match)
-        finally:
-            db.close()
 
     bom_entries = resolve_bom(project)
 
     if fmt == "json":
-        rows = []
-        for entry in bom_entries:
-            row = {
-                "ref": entry["ref"],
-                "lcsc": entry["lcsc"],
-                "quantity": entry["quantity"],
-                "notes": entry["notes"],
-                "warnings": entry["warnings"],
-            }
-            part = entry["part"]
-            if part:
-                row["description"] = part.description
-                row["package"] = part.package
-                row["stock"] = part.stock
-                row["price"] = part.prices[0].unit_price if part.prices else None
-            rows.append(row)
-        click.echo(json.dumps({"status": "ok", "command": command_name, "data": rows}, indent=2))
+        click.echo(format_bom_json(bom_entries, command_name))
 
     elif fmt == "csv":
-        import csv
-        import io
-        buf = io.StringIO()
-        writer = csv.writer(buf)
-        writer.writerow([
-            "Ref", "LCSC", "Qty", "Part", "Manufacturer", "Package",
-            "Description", "Price", "Stock", "Type", "Notes",
-            "Datasheet", "JLCPCB URL",
-        ])
-        for entry in bom_entries:
-            part = entry["part"]
-            writer.writerow([
-                entry["ref"],
-                entry["lcsc"] or "TBD",
-                entry["quantity"],
-                part.mfr_part if part else "",
-                part.manufacturer if part else "",
-                part.package if part else "",
-                part.description if part else "",
-                f"{part.prices[0].unit_price:.4f}" if part and part.prices else "",
-                part.stock if part else "",
-                part.library_type if part else "",
-                entry["notes"],
-                part.datasheet_url or "" if part else "",
-                part.jlcpcb_url or "" if part else "",
-            ])
-        click.echo(buf.getvalue().rstrip())
+        click.echo(format_bom_csv(bom_entries))
 
     elif fmt == "markdown":
-        click.echo(_format_bom_markdown(project, bom_entries))
+        click.echo(format_bom_markdown(project, bom_entries))
 
     else:
-        # Table format
-        from tabulate import tabulate
-        rows = []
-        for entry in bom_entries:
-            part = entry["part"]
-            price = f"${part.prices[0].unit_price:.4f}" if part and part.prices else "-"
-            stock = f"{part.stock:,}" if part else "-"
-            warn = " ⚠" if entry["warnings"] else ""
-            notes = entry["notes"]
-            if len(notes) > 40:
-                notes = notes[:39] + "…"
-            rows.append([
-                entry["ref"],
-                entry["lcsc"] or "TBD",
-                entry["quantity"],
-                notes or "-",
-                part.package if part else "-",
-                price,
-                stock + warn,
-            ])
-        click.echo(tabulate(rows, headers=["Ref", "LCSC", "Qty", "Notes", "Pkg", "Price", "Stock"]))
-
-        # Print warnings
-        for entry in bom_entries:
-            if entry["warnings"]:
-                for w in entry["warnings"]:
-                    click.echo(f"  ⚠ {entry['ref']}: {w}", err=True)
+        table_text, warn_pairs = format_bom_table(bom_entries)
+        click.echo(table_text)
+        for ref, w in warn_pairs:
+            click.echo(f"  ⚠ {ref}: {w}", err=True)
 
 
 @cli.command(name="list")
@@ -1012,349 +917,3 @@ def status(ctx):
             click.echo(f"  ⚠ {w}")
     else:
         click.echo("Warnings:   none")
-
-
-# ── BOM markdown formatter ──────────────────────────────────────────
-
-
-def _humanize_stock(stock: int) -> str:
-    """Format stock for display: 2137009 -> '2.14m', 22021 -> '22k', 3059 -> '3,059'."""
-    if stock >= 1_000_000:
-        return f"{stock / 1_000_000:.2f}m"
-    if stock >= 10_000:
-        return f"{stock // 1_000}k"
-    return f"{stock:,}"
-
-
-def _make_anchor(ref: str) -> str:
-    """Create a markdown anchor ID from a ref designator."""
-    return ref.lower().replace("-", "").replace(" ", "")
-
-
-def _group_bom_entries(bom_entries: list[dict]) -> list[dict]:
-    """Group BOM entries that share the same LCSC code.
-
-    Returns a list of group dicts with:
-      refs: list of ref strings
-      ref_label: combined label like "D1, D2"
-      total_qty: summed quantity
-      lcsc, part, notes, warnings: from first entry
-    """
-    from collections import OrderedDict
-
-    groups: OrderedDict[str, dict] = OrderedDict()
-    for entry in bom_entries:
-        key = entry["lcsc"] or entry["ref"]  # TBD entries keyed by ref
-        if key in groups:
-            g = groups[key]
-            g["refs"].append(entry["ref"])
-            g["total_qty"] += entry["quantity"]
-            # Merge notes (skip duplicates)
-            if entry["notes"] and entry["notes"] not in g["all_notes"]:
-                g["all_notes"].append(entry["notes"])
-            g["warnings"].extend(entry["warnings"])
-        else:
-            groups[key] = {
-                "refs": [entry["ref"]],
-                "total_qty": entry["quantity"],
-                "lcsc": entry["lcsc"],
-                "part": entry["part"],
-                "notes": entry["notes"],
-                "all_notes": [entry["notes"]] if entry["notes"] else [],
-                "warnings": list(entry["warnings"]),
-            }
-
-    result = []
-    for g in groups.values():
-        g["ref_label"] = ", ".join(g["refs"])
-        result.append(g)
-    return result
-
-
-def _format_bom_markdown(project, bom_entries: list[dict]) -> str:
-    """Format BOM as rich markdown with summary table + detail sections."""
-    lines = []
-    groups = _group_bom_entries(bom_entries)
-
-    # Header
-    lines.append(f"# {project.name}")
-    if project.description:
-        lines.append(f"\n{project.description}")
-    lines.append("")
-
-    # Cost summary
-    total_cost = sum(
-        e["part"].prices[0].unit_price * e["quantity"]
-        for e in bom_entries
-        if e["part"] and e["part"].prices
-    )
-    lines.append(f"**{len(bom_entries)} line items ({len(groups)} unique parts), ~${total_cost:.2f} estimated (qty 1)**")
-    lines.append("")
-
-    # Summary table
-    lines.append("## BOM")
-    lines.append("")
-    headers = ["Ref", "Qty", "LCSC", "Package", "Note", "Stock", "Price"]
-    lines.append("| " + " | ".join(headers) + " |")
-    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
-
-    for g in groups:
-        part = g["part"]
-        anchor = _group_anchor(g)
-        pkg = part.package if part else ""
-        price = f"${part.prices[0].unit_price:.4f}" if part and part.prices else ""
-        stock = _humanize_stock(part.stock) if part else ""
-        note = g["notes"]
-        lines.append("| " + " | ".join([
-            f"[{g['ref_label']}](#{anchor})",
-            str(g["total_qty"]),
-            (g["lcsc"] or "TBD"),
-            pkg,
-            note,
-            stock,
-            price,
-        ]) + " |")
-
-    # Detail sections
-    lines.append("")
-    lines.append("## Details")
-
-    for g in groups:
-        part = g["part"]
-        ref_label = g["ref_label"]
-        anchor = _group_anchor(g)
-
-        lcsc_id = g["lcsc"] or ref_label
-        lines.append("")
-        lines.append(f'<a id="{anchor}"></a>')
-        lines.append(f"### {lcsc_id}")
-        lines.append("")
-
-        if not part:
-            lines.append(f"**Status:** TBD — no part selected")
-            if g["notes"]:
-                lines.append(f"**Notes:** {g['notes']}")
-            continue
-
-        # Detail table — no empty separator rows
-        lines.append("| | |")
-        lines.append("|---|---|")
-        lines.append(f"| **Designator** | {ref_label} |")
-        lines.append(f"| **Part** | {part.mfr_part} |")
-        lines.append(f"| **LCSC** | {g['lcsc']} |")
-        lines.append(f"| **Manufacturer** | {part.manufacturer} |")
-        lines.append(f"| **Package** | {part.package} |")
-        lib_label = "Basic (no extra fee)" if part.library_type == "base" else "Extended"
-        lines.append(f"| **Type** | {lib_label} |")
-        lines.append(f"| **Quantity** | {g['total_qty']} |")
-        lines.append(f"| **Description** | {part.description} |")
-
-        # Notes — show all unique notes for grouped entries
-        for note in g["all_notes"]:
-            lines.append(f"| **Notes** | {note} |")
-
-        # Stock & pricing
-        lines.append(f"| **Stock** | {part.stock:,} |")
-        if part.prices:
-            price_str = ", ".join(
-                f"${p.unit_price:.4f} (≥{p.qty_from})"
-                for p in part.prices
-            )
-            lines.append(f"| **Pricing** | {price_str} |")
-
-        # Attributes
-        for a in part.attributes:
-            lines.append(f"| **{a.name}** | {a.value_raw} |")
-
-        # Links
-        if part.datasheet_url:
-            lines.append(f"| **Datasheet** | {part.datasheet_url} |")
-        if part.jlcpcb_url:
-            lines.append(f"| **JLCPCB** | {part.jlcpcb_url} |")
-
-    lines.append("")
-    return "\n".join(lines)
-
-
-# ── Helpers ──────────────────────────────────────────────────────────
-
-
-def _validate_category(category: str):
-    """Validate a category string against synced categories.
-
-    Used by ``query`` to give helpful errors instead of silent empty results.
-    Unlike ``_resolve_category`` (used by ``search``), this does not resolve
-    to an exact name — ``query`` uses substring matching against the parts
-    table directly. This only checks that the input is plausible.
-    """
-    db = get_db()
-    try:
-        cats = db.get_categories()
-        if not cats:
-            # No synced categories — skip validation, let query run
-            return
-
-        matches = db.match_category(category)
-        if not matches:
-            click.echo(
-                f"No category matching '{category}'. "
-                "Run 'bomi categories' to see available categories.",
-                err=True,
-            )
-            sys.exit(1)
-
-        # Warn if there's an exact match to a top-level parent
-        exact = [m for m in matches if m.lower() == category.lower()]
-        resolved = exact[0] if len(exact) == 1 else (matches[0] if len(matches) == 1 else None)
-        if resolved:
-            children = db.get_categories(parent=resolved)
-            if children:
-                click.echo(
-                    f"Note: '{resolved}' is a top-level category. "
-                    "Use a subcategory for more specific results. "
-                    "Run 'bomi categories' to browse.",
-                    err=True,
-                )
-    finally:
-        db.close()
-
-
-def _resolve_category(category: str) -> str:
-    """Resolve a category substring to an exact API-compatible category name.
-
-    The JLCPCB API only filters on subcategory-level names (those with a
-    parent).  If the user picks a top-level parent we show its children
-    so they can refine.  Exits on error.
-    """
-    db = get_db()
-    try:
-        matches = db.match_category(category)
-
-        if not matches:
-            has_any = bool(db.get_categories())
-            if not has_any:
-                click.echo(
-                    "No categories cached. Run 'bomi sync' first.",
-                    err=True,
-                )
-            else:
-                click.echo(
-                    f"No category matching '{category}'. "
-                    "Run 'bomi categories' to see available categories.",
-                    err=True,
-                )
-            sys.exit(1)
-
-        # If a single match, use it — but check if it's a parent
-        resolved = None
-        if len(matches) == 1:
-            resolved = matches[0]
-        else:
-            exact = [m for m in matches if m.lower() == category.lower()]
-            if len(exact) == 1:
-                resolved = exact[0]
-
-        if resolved:
-            # Check if this is a top-level parent (not usable as API filter)
-            children = db.get_categories(parent=resolved)
-            if children:
-                click.echo(
-                    f"'{resolved}' is a top-level category. "
-                    "Pick a subcategory:",
-                    err=True,
-                )
-                for child in children:
-                    cc = (
-                        f" ({child['part_count']:,})"
-                        if child["part_count"]
-                        else ""
-                    )
-                    click.echo(f"  {child['name']}{cc}", err=True)
-                sys.exit(1)
-            return resolved
-
-        # Multiple matches, none exact — filter out parent-level entries
-        all_cats_map = {c["name"]: c for c in db.get_categories()}
-        subcats = [
-            m
-            for m in matches
-            if all_cats_map.get(m, {}).get("parent") is not None
-        ]
-
-        if len(subcats) == 1:
-            return subcats[0]
-
-        display = subcats if subcats else matches
-        click.echo(
-            f"'{category}' matches multiple categories:", err=True
-        )
-        for m in display:
-            click.echo(f"  {m}", err=True)
-        click.echo(
-            "\nBe more specific or use the exact name.", err=True
-        )
-        sys.exit(1)
-    finally:
-        db.close()
-
-
-def _apply_local_filters(
-    parts: list,
-    package: str | None = None,
-    min_stock: int | None = None,
-    max_price: float | None = None,
-    attr_filters: list[tuple[str, str, float | str]] | None = None,
-) -> list:
-    """Apply local filters to a list of Part objects after API fetch."""
-    result = parts
-
-    if package:
-        result = [p for p in result if package.lower() in p.package.lower()]
-
-    if min_stock is not None:
-        result = [p for p in result if p.stock >= min_stock]
-
-    if max_price is not None:
-        result = [
-            p for p in result
-            if p.prices and p.prices[0].unit_price <= max_price
-        ]
-
-    if attr_filters:
-        for attr_name, op, threshold in attr_filters:
-            filtered = []
-            for p in result:
-                attr = next(
-                    (a for a in p.attributes if a.name == attr_name), None
-                )
-                if attr is None:
-                    continue
-                if isinstance(threshold, str):
-                    # String comparison against raw value
-                    if op == "=" and attr.value_raw == threshold:
-                        filtered.append(p)
-                    elif op == "!=" and attr.value_raw != threshold:
-                        filtered.append(p)
-                elif attr.value_num is not None:
-                    if _compare(attr.value_num, op, threshold):
-                        filtered.append(p)
-            result = filtered
-
-    return result
-
-
-def _compare(value: float, op: str, threshold: float) -> bool:
-    ops = {
-        ">=": lambda a, b: a >= b,
-        "<=": lambda a, b: a <= b,
-        ">": lambda a, b: a > b,
-        "<": lambda a, b: a < b,
-        "=": lambda a, b: a == b,
-        "!=": lambda a, b: a != b,
-    }
-    return ops.get(op, lambda a, b: False)(value, threshold)
-
-
-def _group_anchor(group: dict) -> str:
-    """Stable anchor ID for a grouped BOM entry."""
-    return (group["lcsc"] or _make_anchor(group["refs"][0])).lower()

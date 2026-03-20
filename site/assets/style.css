@@ -21,6 +21,20 @@
   --orange-light: #fff1e5;
   --mono:         'IBM Plex Mono', 'Fira Code', monospace;
   --sans:         'IBM Plex Sans', system-ui, sans-serif;
+  /* Sticky site header — fragment scrolls leave headings visible below it */
+  --sticky-nav-height: 4.75rem;
+  --radius-block: 6px;
+  /* Terminal / player panels (asciinema, TUI chat) */
+  --terminal-bg:     #1e2228;
+  --terminal-border: #30363d;
+  --terminal-head-bg: #252a32;
+  --terminal-muted: #8b949e;
+  --terminal-fg:    #c9d1d9;
+  --terminal-accent: #58a6ff;
+}
+
+html {
+  scroll-padding-top: var(--sticky-nav-height);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -91,11 +105,15 @@ nav {
 
 /* ── Layout ───────────────────────────────────────────────────── */
 
-main { max-width: 1080px; margin: 0 auto; padding: 0 2rem; }
+main { max-width: 1140px; margin: 0 auto; padding: 0 2rem; }
 
 section { padding: 3.5rem 0; }
 
 section + section { border-top: 1px solid var(--border); }
+
+main > section:first-child {
+  border-top: none;
+}
 
 .section-label {
   font-family: var(--mono);
@@ -139,6 +157,77 @@ p:last-child { margin-bottom: 0; }
 a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+/* ── Utilities (replace ad-hoc inline styles) ─────────────────── */
+
+.measure-readable { max-width: 560px; }
+
+.doc-page-title {
+  font-size: 1.6rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.25;
+}
+
+.doc-lede {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  margin-bottom: 2rem;
+}
+
+.doc-section-intro {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+
+.fine-print {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+.prose-small {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.page-intro-lede {
+  margin-top: 0.75rem;
+  font-size: 0.975rem;
+  max-width: 560px;
+}
+
+.install-lead {
+  margin-bottom: 0.6rem;
+}
+
+/* Vertical spacing helpers (avoid inline margins) */
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 0.6rem; }
+.mt-3 { margin-top: 0.75rem; }
+.mt-4 { margin-top: 0.9rem; }
+.mb-wide { margin-bottom: 2rem; }
+
+.stack-forward {
+  margin-top: 1.25rem;
+}
+
+.section-heading-tight {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.two-col--player {
+  align-items: start;
+  grid-template-columns: 1fr auto;
+}
+
+.vibe-intro {
+  padding-bottom: 2rem;
+}
+
+.callout-spaced {
+  margin-top: 0.75rem;
+}
+
 /* ── Code ─────────────────────────────────────────────────────── */
 
 code {
@@ -150,15 +239,17 @@ code {
   padding: 0.1em 0.35em;
 }
 
+/* Default: light inset blocks (marketing + docs). Real terminals use .ap-wrapper. */
 pre {
   font-family: var(--mono);
-  font-size: 0.8rem;
-  background: #1e2228;
-  border: 1px solid #30363d;
-  padding: 1rem 1.2rem;
+  font-size: 0.82rem;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius-block);
   overflow-x: auto;
-  line-height: 1.6;
-  color: #e6edf3;
+  line-height: 1.5;
+  color: var(--text);
 }
 
 pre code {
@@ -167,6 +258,56 @@ pre code {
   padding: 0;
   color: inherit;
   font-size: inherit;
+}
+
+/* CLI snippets (hljs `github` theme + overrides below) */
+pre.cmd {
+  margin: 0.75rem 0;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-block);
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+pre.cmd code {
+  display: block;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+pre.cmd code.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* JSON / YAML samples */
+pre.json-out,
+pre.data-block {
+  margin: 0.75rem 0;
+  font-size: 0.78rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-block);
+  overflow-x: auto;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+pre.json-out code,
+pre.data-block code,
+pre.json-out code.hljs,
+pre.data-block code.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 /* ── Cards ────────────────────────────────────────────────────── */
@@ -217,16 +358,18 @@ pre code {
 
 .step-body h3 { font-size: 0.95rem; margin-bottom: 0.3rem; }
 .step-body p  { font-size: 0.85rem; margin-bottom: 0.6rem; }
-.step-body pre { margin-top: 0.5rem; font-size: 0.78rem; }
+.step-body pre:not(.cmd) { margin-top: 0.5rem; font-size: 0.78rem; }
+.step-body pre.cmd { margin-top: 0.5rem; }
 
 /* ── Install box ──────────────────────────────────────────────── */
 
 .install-box {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
-  background: var(--bg-subtle);
+  background: var(--bg-inset);
   border: 1px solid var(--border);
+  border-radius: var(--radius-block);
   padding: 0.7rem 1.1rem;
   font-family: var(--mono);
   font-size: 0.875rem;
@@ -234,7 +377,19 @@ pre code {
   color: var(--text);
 }
 
-.install-box .prompt { color: var(--text-faint); user-select: none; }
+.install-box .prompt {
+  color: var(--text-faint);
+  user-select: none;
+  line-height: 1.5;
+  padding-top: 0.06em;
+}
+
+.install-box-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  line-height: 1.45;
+}
 
 /* ── Tags ─────────────────────────────────────────────────────── */
 
@@ -291,8 +446,8 @@ tr:last-child td { border-bottom: none; }
 /* ── Terminal player wrapper ─────────────────────────────────── */
 
 .ap-wrapper {
-  border: 1px solid var(--border);
-  background: #1e2228;
+  border: 1px solid var(--terminal-border);
+  background: var(--terminal-bg);
   overflow: hidden;
   /* suppress any zoom/scale transitions from asciinema player */
   transform: none;
@@ -378,6 +533,163 @@ tr:last-child td { border-bottom: none; }
 
 @media (max-width: 800px) {
   .hero { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+/* ── Workflow section (index) ─────────────────────────────────── */
+
+.two-col--workflow {
+  align-items: start;
+}
+
+.workflow-bom-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-block);
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: 0 2px 8px rgba(31, 35, 40, 0.06);
+}
+
+.workflow-bom-cap {
+  padding: 0.42rem 0.85rem;
+  background: var(--terminal-head-bg);
+  border-bottom: 1px solid var(--terminal-border);
+}
+
+.workflow-bom-cmd {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--terminal-muted);
+  letter-spacing: 0.03em;
+}
+
+.workflow-bom-doc {
+  padding: 1rem 1.15rem 1.15rem;
+  border-top: 1px solid var(--bg-subtle);
+}
+
+.workflow-bom-h1 {
+  font-family: var(--sans);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 0.15rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.workflow-bom-lede {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 0 0 0.65rem;
+  line-height: 1.4;
+}
+
+.workflow-bom-summary {
+  font-size: 0.78rem;
+  color: var(--text);
+  margin: 0 0 1rem;
+  line-height: 1.45;
+}
+
+.workflow-bom-h2 {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin: 0 0 0.5rem;
+}
+
+.workflow-bom-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-inset);
+}
+
+.workflow-bom-table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.workflow-bom-table thead th {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.workflow-bom-table thead th.num {
+  text-align: right;
+}
+
+.workflow-bom-table tbody td {
+  padding: 0.42rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: top;
+}
+
+.workflow-bom-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.workflow-bom-table tbody tr:nth-child(even) td {
+  background: var(--bg-subtle);
+}
+
+.workflow-bom-table td.num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.workflow-bom-table td.num.price {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.workflow-bom-table td.num.warn {
+  color: var(--orange);
+  font-weight: 500;
+}
+
+.workflow-bom-table td.note {
+  color: var(--text-dim);
+  max-width: 11rem;
+  hyphens: auto;
+}
+
+.workflow-bom-table .ref {
+  font-weight: 600;
+  color: var(--blue-mid);
+}
+
+.workflow-bom-table code {
+  font-size: 0.65rem;
+  padding: 0.05em 0.28em;
+}
+
+.workflow-bom-truncate {
+  margin: 0.75rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+.workflow-bom-dim {
+  color: var(--text-faint);
 }
 
 /* ── Callout ──────────────────────────────────────────────────── */
@@ -517,7 +829,7 @@ tr:last-child td { border-bottom: none; }
 .analysis-rendered ul, .analysis-rendered ol { padding-left: 1.5rem; margin-bottom: 0.7rem; color: var(--text-dim); }
 .analysis-rendered li { margin-bottom: 0.2rem; }
 .analysis-rendered code { font-family: var(--mono); font-size: 0.82em; background: #efe8d8; border: 1px solid #ddd5c0; padding: 0.1em 0.35em; color: var(--text); }
-.analysis-rendered pre { background: #1e2228; border: 1px solid #30363d; padding: 0.75rem 1rem; color: #e6edf3; font-size: 0.8rem; overflow-x: auto; margin: 0.75rem 0; }
+.analysis-rendered pre { background: var(--terminal-bg); border: 1px solid var(--terminal-border); padding: 0.75rem 1rem; color: #e6edf3; font-size: 0.8rem; overflow-x: auto; margin: 0.75rem 0; }
 .analysis-rendered pre code { background: none; border: none; padding: 0; color: inherit; }
 .analysis-rendered table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 0.75rem 0 1rem; }
 .analysis-rendered th { text-align: left; border-bottom: 2px solid #ddd5c0; padding: 0.4rem 0.75rem 0.4rem 0; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); }
@@ -563,11 +875,12 @@ tr:last-child td { border-bottom: none; }
   border: 1px solid var(--border);
   padding: 0.5rem 0.75rem;
   background: var(--bg-subtle);
-  display: flex;
-  gap: 0.6rem;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.6rem;
+  row-gap: 0.4rem;
+  align-items: start;
   cursor: pointer;
-  flex-wrap: wrap;
   user-select: none;
 }
 
@@ -576,30 +889,73 @@ tr:last-child td { border-bottom: none; }
 .prompt-item::before {
   content: '▸';
   color: var(--blue);
-  flex-shrink: 0;
   line-height: 1.45;
   display: inline-block;
   transition: transform 0.15s;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.prompt-item-label {
+  grid-column: 2;
+  grid-row: 1;
+  line-height: 1.45;
+  min-width: 0;
 }
 
 .prompt-item.open::before { transform: rotate(90deg); }
 
 .prompt-cmd {
   display: none;
-  width: 100%;
-  margin-top: 0.4rem;
-  padding: 0.35rem 0.65rem;
+  grid-column: 1 / -1;
+  padding: 0.45rem 0.7rem;
   font-family: var(--mono);
-  font-size: 0.71rem;
-  background: #1e2228;
-  border: 1px solid #30363d;
-  color: #e6edf3;
+  font-size: 0.74rem;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-block);
+  color: var(--text);
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: break-word;
   line-height: 1.55;
 }
 
+/* Undo global `code` inset chrome inside prompt rows */
+.prompt-item code.prompt-cmd {
+  border: none;
+  font-size: 0.74rem;
+}
+
+.prompt-cmd.hljs {
+  background: var(--bg-inset) !important;
+  padding: 0.45rem 0.7rem !important;
+}
+
 .prompt-item.open .prompt-cmd { display: block; }
+
+/* ── Example prompts as chat bubbles (index landing) ─────────── */
+
+.prompt-bubbles {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  width: 100%;
+}
+
+.prompt-bubble {
+  margin: 0;
+  max-width: 95%;
+  padding: 0.4rem 0.65rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  font-family: var(--sans);
+}
 
 /* ── Feature rows ─────────────────────────────────────────────── */
 
@@ -642,15 +998,8 @@ tr:last-child td { border-bottom: none; }
   line-height: 1.6;
 }
 
-.feature-code {
-  font-family: var(--mono);
-  font-size: 0.74rem;
-  background: #1e2228;
-  border: 1px solid #30363d;
-  padding: 0.6rem 0.85rem;
-  color: #e6edf3;
-  line-height: 1.55;
-  overflow-x: auto;
+/* Feature grid: same shell styling as pre.cmd */
+pre.cmd.feature-code {
   margin: 0;
 }
 
@@ -691,8 +1040,10 @@ footer a:hover { color: var(--text); }
 .player-label {
   font-family: var(--mono);
   font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-faint);
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.35rem;
 }
 
 /* ── Getting-started page ─────────────────────────────────────── */
@@ -745,8 +1096,8 @@ footer a:hover { color: var(--text); }
 
 .doc-layout {
   display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 3rem;
+  grid-template-columns: minmax(15.5rem, 17.5rem) minmax(0, 1fr);
+  gap: 2.5rem 3rem;
   align-items: start;
   padding: 2.5rem 0;
 }
@@ -756,26 +1107,40 @@ footer a:hover { color: var(--text); }
   .doc-nav { display: none; }
 }
 
-.doc-nav { position: sticky; top: 72px; }
+/* Sidebar TOC: not the site header <nav> — reset global nav row layout */
+.doc-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  position: sticky;
+  top: var(--sticky-nav-height);
+  z-index: 1;
+}
 
 .doc-nav-label {
   font-family: var(--mono);
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   color: var(--text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 0.6rem;
+  letter-spacing: 0.06em;
+  line-height: 1.45;
+  margin-bottom: 0.85rem;
 }
 
 .doc-nav ul { list-style: none; }
-.doc-nav li + li { margin-top: 0.2rem; }
+.doc-nav li + li { margin-top: 0.35rem; }
 
 .doc-nav a {
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   color: var(--text-dim);
   text-decoration: none;
   display: block;
-  padding: 0.2rem 0 0.2rem 0.7rem;
+  padding: 0.28rem 0 0.28rem 0.75rem;
+  line-height: 1.38;
   border-left: 2px solid transparent;
   transition: border-color 0.1s, color 0.1s;
 }
@@ -783,7 +1148,15 @@ footer a:hover { color: var(--text); }
 .doc-nav a:hover  { color: var(--text); border-left-color: var(--border-hi); }
 .doc-nav a.active { color: var(--blue); border-left-color: var(--blue); }
 
+/* Let long code/pre in the article shrink the text column correctly */
+.doc-content { min-width: 0; }
+
 .doc-content h1 { font-size: 1.5rem; margin-bottom: 0.4rem; }
+
+.doc-content h1.doc-page-title {
+  font-size: 1.6rem;
+  margin-bottom: 0.5rem;
+}
 
 .doc-content h2 {
   font-size: 1.1rem;
@@ -810,3 +1183,48 @@ footer a:hover { color: var(--text); }
 .doc-content li { margin-bottom: 0.2rem; }
 
 .doc-content table { margin: 0.75rem 0 1.75rem; }
+
+/* Per-command examples (examples.html) */
+.doc-content .example-item {
+  margin: 0.85rem 0 1.35rem;
+}
+.doc-content .example-item pre.cmd {
+  margin: 0 0 0.4rem;
+}
+.doc-content .example-item .ex {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+.doc-content .example-item .ex strong {
+  color: var(--text);
+  font-weight: 500;
+}
+.doc-content .example-item .out-label {
+  margin: 0.55rem 0 0.3rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+.doc-content .example-item pre.out {
+  margin: 0;
+  font-size: 0.76rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-block);
+  color: var(--text);
+  line-height: 1.4;
+}
+.doc-content .example-item pre.out code.hljs,
+.doc-content .example-item pre.out code.nohighlight {
+  padding: 0;
+  background: transparent !important;
+  font-size: inherit;
+  color: inherit;
+}
+.doc-content .example-item pre.json-out {
+  margin: 0;
+}

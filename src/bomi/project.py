@@ -238,8 +238,7 @@ def resolve_bom(project: Project) -> list[dict]:
 
     Returns list of dicts with selection info + part data merged.
     """
-    db = Database(get_db_path())
-    try:
+    with Database(get_db_path()) as db:
         results = []
         for sel in project.selections:
             entry = {
@@ -264,5 +263,3 @@ def resolve_bom(project: Project) -> list[dict]:
 
             results.append(entry)
         return results
-    finally:
-        db.close()

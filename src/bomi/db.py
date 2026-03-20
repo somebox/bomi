@@ -5,6 +5,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .filters import append_attr_filter_sql
 from .models import Analysis, Attribute, Part, PriceTier
 
 SCHEMA_SQL = """
@@ -96,6 +97,12 @@ class Database:
 
     def close(self):
         self.conn.close()
+
+    def __enter__(self) -> "Database":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
 
     def upsert_part(self, part: Part):
         """Insert or update a part and its prices/attributes."""
@@ -297,7 +304,7 @@ class Database:
         basic_only: bool = False,
         preferred_only: bool = False,
         max_price: float | None = None,
-        attr_filters: list[tuple[str, str, float]] | None = None,
+        attr_filters: list[tuple[str, str, float | str]] | None = None,
         limit: int = 50,
     ) -> list[Part]:
         """Query parts from local DB with filters.
@@ -342,30 +349,7 @@ class Database:
 
         if attr_filters:
             for attr_name, op, value in attr_filters:
-                if isinstance(value, str):
-                    # String comparison against raw attribute value
-                    if op == "!=":
-                        conditions.append(
-                            "EXISTS (SELECT 1 FROM attributes a "
-                            "WHERE a.lcsc_code = p.lcsc_code "
-                            "AND a.attr_name = ? AND a.attr_value_raw != ?)"
-                        )
-                    else:
-                        conditions.append(
-                            "EXISTS (SELECT 1 FROM attributes a "
-                            "WHERE a.lcsc_code = p.lcsc_code "
-                            "AND a.attr_name = ? AND a.attr_value_raw = ?)"
-                        )
-                    params.extend([attr_name, value])
-                else:
-                    # Numeric comparison against parsed value
-                    sql_op = op if op != "=" else "="
-                    conditions.append(
-                        f"EXISTS (SELECT 1 FROM attributes a "
-                        f"WHERE a.lcsc_code = p.lcsc_code "
-                        f"AND a.attr_name = ? AND a.attr_value_num {sql_op} ?)"
-                    )
-                    params.extend([attr_name, value])
+                append_attr_filter_sql(conditions, params, attr_name, op, value)
 
         where = " AND ".join(conditions) if conditions else "1=1"
         sql = f"SELECT lcsc_code FROM parts p WHERE {where} ORDER BY p.stock DESC LIMIT ?"

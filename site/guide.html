@@ -6,6 +6,7 @@
   <title>Agent Guide — bomi</title>
   <meta name="description" content="A short structured reference for AI agents using bomi.">
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 </head>
 <body>
 
@@ -27,6 +28,7 @@
       <ul>
         <li><a href="#quick-rules">Quick rules</a></li>
         <li><a href="#quick-ref">Command reference</a></li>
+        <li><a href="#categories-attrs">Categories &amp; attributes</a></li>
         <li><a href="#flows">Common flows</a></li>
         <li><a href="#output">Output format</a></li>
         <li><a href="#context">Project context</a></li>
@@ -37,8 +39,8 @@
 
     <div class="doc-content">
       <div class="section-label">Agent Guide</div>
-      <h1 style="font-size:1.6rem;margin-bottom:0.5rem">bomi — Agent Reference</h1>
-      <p style="color:var(--text-dim);font-size:0.875rem;margin-bottom:2rem">
+      <h1 class="doc-page-title">bomi — Agent Reference</h1>
+      <p class="doc-lede">
         This guide is designed to be read at the start of a Claude Code, Copilot, or Cursor session.
         It gives the agent everything it needs to use <code>bomi</code> correctly.
       </p>
@@ -50,9 +52,11 @@
 
       <h2 id="quick-rules">Quick rules</h2>
       <ul>
-        <li><code>search</code> is live and also updates the local cache.</li>
+        <li><code>sync</code> fetches the JLCPCB category tree into the local cache (skips if already fresh; <code>--force</code> to refresh). Run it before <code>search --category</code>.</li>
+        <li><code>search</code> is live and also updates the local cache. <code>search --category</code> resolves a synced subcategory name for the API. <code>query --category</code> uses substring matching on cached <code>parts.category</code> instead.</li>
         <li><code>query</code> is local-cache only — fast and offline.</li>
-        <li><code>info</code>, <code>compare</code>, <code>analyze</code>, and <code>datasheet</code> need the part in the local cache first — run <code>fetch</code> if needed.</li>
+        <li><code>--package</code>, <code>--min-stock</code>, <code>--max-price</code>, and <code>--attr</code> use the same rules for <code>search</code> (after results are normalized) and <code>query</code> (SQL). <code>--basic-only</code> / <code>--preferred-only</code> apply on the API for <code>search</code> and in SQL for <code>query</code>, but are not re-checked locally after a <code>search</code>.</li>
+        <li><code>info</code>, <code>compare</code>, <code>analyze</code>, and <code>datasheet</code> need the part in the local cache — run <code>fetch</code> if needed. <code>select</code> fetches automatically when the part is missing.</li>
         <li><code>select</code>, <code>list</code>/<code>bom</code>, <code>status</code>, <code>deselect</code>, and <code>relabel</code> need project context (a <code>.bomi/project.yaml</code> in the tree).</li>
         <li><code>fetch --all</code> and <code>datasheet --all</code> process selected LCSC parts from the active project BOM.</li>
         <li><code>status</code> is text-only. <code>list --format json</code> (and <code>bom --format json</code>) uses a different JSON shape than other commands — see Output Format.</li>
@@ -64,10 +68,15 @@
           <tr><th>Command</th><th>Purpose</th></tr>
         </thead>
         <tbody>
+          <tr><td>bomi sync</td><td>Fetch and cache the JLCPCB category tree</td></tr>
+          <tr><td>bomi categories</td><td>List cached categories (hierarchy)</td></tr>
+          <tr><td>bomi categories "filter"</td><td>List categories whose name contains <code>filter</code></td></tr>
           <tr><td>bomi search "keyword"</td><td>Search the live JLCPCB catalog</td></tr>
+          <tr><td>bomi search "keyword" --category "Subcat Name"</td><td>Live search scoped to a synced subcategory (after <code>sync</code>)</td></tr>
           <tr><td>bomi fetch CXXXXX</td><td>Cache a specific part by LCSC code</td></tr>
           <tr><td>bomi fetch --all</td><td>Cache all selected LCSC parts from the active project BOM</td></tr>
           <tr><td>bomi query "keyword"</td><td>Search the local cache only</td></tr>
+          <tr><td>bomi query --category "name"</td><td>Filter the local cache by category substring (<code>LIKE</code> on <code>parts.category</code>)</td></tr>
           <tr><td>bomi info R1</td><td>Show full details for the part selected at a designator</td></tr>
           <tr><td>bomi info CXXXXX</td><td>Show full details for one cached part by LCSC code</td></tr>
           <tr><td>bomi compare CXXXXX CYYYYY</td><td>Compare cached parts side-by-side</td></tr>
@@ -86,26 +95,46 @@
         </tbody>
       </table>
 
+      <h2 id="categories-attrs">Categories &amp; attribute filters</h2>
+      <p>
+        Use <code>bomi sync</code> once (per machine/workflow) so <code>search --category</code> can resolve names.
+        Browse names with <code>bomi categories</code> or <code>bomi categories mosfet</code>.
+        For <code>search</code>, pick a <strong>subcategory</strong> name (not only a top-level parent) — the CLI will list children if you pass a parent.
+      </p>
+      <p>
+        <code>--attr "Name operator value"</code> works on both <code>search</code> and <code>query</code>. Combine with <code>--category</code>, <code>--package</code>, <code>--min-stock</code>, <code>--max-price</code>, <code>--basic-only</code>, or <code>--preferred-only</code> as needed.
+        Multiple <code>--attr</code> flags are ANDed.
+      </p>
+
       <h2 id="flows">Common flows</h2>
 
+      <h3>Sync categories and search</h3>
+      <pre class="cmd"><code class="language-bash">bomi sync
+bomi categories mosfet
+bomi search "N-Channel" --category "MOSFETs"</code></pre>
+
       <h3>Search and inspect</h3>
-      <pre>bomi search "buck converter 3.3V"
+      <pre class="cmd"><code class="language-bash">bomi search "buck converter 3.3V"
 bomi fetch C9865
 bomi info C9865
-bomi compare C9865 C28023</pre>
+bomi compare C9865 C28023</code></pre>
 
       <h3>Filter by attributes</h3>
-      <pre>bomi search "0402 resistor" --attr "Resistance >= 10k"
+      <pre class="cmd"><code class="language-bash">bomi search "0402 resistor" --attr "Resistance >= 10k"
 bomi search "MOSFET SOT-23" --attr "Drain Source Voltage (Vdss) >= 30"
-bomi query --basic-only --attr "Capacitance <= 100n"</pre>
+bomi query --category "Chip Resistor" --basic-only --attr "Resistance >= 10k"
+bomi query --basic-only --attr "Capacitance <= 100n"
+bomi query --category "Slide Switches" --attr "Circuit = SP3T"</code></pre>
       <p>
-        Attribute operators: <code>&gt;=</code> <code>&lt;=</code> <code>&gt;</code> <code>&lt;</code> <code>=</code> <code>!=</code>.
+        Attribute operators: <code>&gt;=</code> <code>&lt;=</code> <code>&gt;</code> <code>&lt;</code> <code>=</code> <code>!=</code>
+        (<code>!=</code> is mainly for non-numeric / string attributes).
         Values support SI prefixes: <code>10k</code>, <code>100n</code>, <code>4.7u</code>.
+        Non-numeric attributes use string equality with <code>=</code> or <code>!=</code> (exact match on the raw value).
         Multiple <code>--attr</code> flags are ANDed together.
       </p>
 
       <h3>Work in a project</h3>
-      <pre>cd my-project
+      <pre class="cmd"><code class="language-bash">cd my-project
 bomi init --name "My Board" --description "Description here"
 
 bomi select C9865 --ref U3 --qty 1 --notes "3.3V buck"
@@ -113,15 +142,15 @@ bomi select C8678 --ref D3 --qty 1 --notes "catch diode"
 
 bomi list
 bomi list --check
-bomi status</pre>
+bomi status</code></pre>
 
       <h3>Work with datasheets</h3>
-      <pre>bomi fetch C9865
+      <pre class="cmd"><code class="language-bash">bomi fetch C9865
 bomi analyze C9865
 bomi analyze C9865 --prompt "What is the enable pin threshold voltage?"
 bomi fetch --all --force
 bomi datasheet --all --pdf --summary --force -o docs/datasheets/
-bomi datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
+bomi datasheet C9865 --pdf --summary -o docs/datasheets/</code></pre>
       <p>
         The <code>analyze</code> command sends the datasheet PDF to OpenRouter and returns structured markdown.
         Requires an OpenRouter API key in config. The <code>datasheet</code> command writes files to disk:
@@ -130,18 +159,18 @@ bomi datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
 
       <h2 id="output">Output format</h2>
       <p>Most commands support <code>--format table|json|csv|markdown</code>. JSON uses this envelope:</p>
-      <pre>{
+      <pre class="json-out"><code class="language-json">{
   "status": "ok",
   "command": "search",
   "count": 1,
   "results": [ ... ]
-}</pre>
+}</code></pre>
       <p><code>list --format json</code> (and <code>bom --format json</code>) is different — it uses <code>data</code> instead of <code>results</code>:</p>
-      <pre>{
+      <pre class="json-out"><code class="language-json">{
   "status": "ok",
   "command": "bom",
   "data": [ ... ]
-}</pre>
+}</code></pre>
       <p><code>status</code> is text-only and does not support <code>--format</code>.</p>
 
       <h2 id="context">Project context</h2>
@@ -165,14 +194,14 @@ bomi datasheet C9865 --pdf --summary -o docs/datasheets/</pre>
       <p>
         <code>project.yaml</code> is project-local and should usually be committed to git. It stores project metadata and selected parts:
       </p>
-      <pre>name: my-board
+      <pre class="data-block"><code class="language-yaml">name: my-board
 description: Motor driver board
 created: "2026-03-19"
 selections:
   - ref: U3
     lcsc: C9865
     quantity: 1
-    notes: 3.3V buck regulator</pre>
+    notes: 3.3V buck regulator</code></pre>
       <p>Core fields: <code>name</code>, <code>description</code>, <code>created</code>, and <code>selections[]</code> entries with <code>ref</code>, <code>lcsc</code>, <code>quantity</code>, <code>notes</code> (plus optional alternatives).</p>
 
       <h3>Global config: <code>config.yaml</code></h3>
@@ -182,9 +211,9 @@ selections:
         <li>Linux: <code>~/.local/share/bomi/config.yaml</code></li>
       </ul>
       <p>Relevant keys:</p>
-      <pre>openrouter_api_key: sk-or-v1-...
+      <pre class="data-block"><code class="language-yaml">openrouter_api_key: sk-or-v1-...
 default_model: anthropic/claude-sonnet-4.6
-datasheet_output_dir: docs/datasheets</pre>
+datasheet_output_dir: docs/datasheets</code></pre>
       <p>How they are used:</p>
       <ul>
         <li><code>openrouter_api_key</code>: required for <code>analyze</code> and <code>datasheet --summary/--summarize</code></li>
@@ -195,7 +224,8 @@ datasheet_output_dir: docs/datasheets</pre>
 
       <h2 id="defaults">Good defaults</h2>
       <ul>
-        <li>Run <code>fetch</code> before <code>info</code>, <code>compare</code>, <code>analyze</code>, or <code>datasheet</code>.</li>
+        <li>Run <code>sync</code> once before relying on <code>search --category</code>.</li>
+        <li>Run <code>fetch</code> before <code>info</code>, <code>compare</code>, <code>analyze</code>, or <code>datasheet</code> (unless you use <code>select</code>, which can fetch for you).</li>
         <li>Use <code>query</code> when you want fast, offline, reproducible filtering from the local cache.</li>
         <li>Use <code>list --check</code> before ordering to refresh stock and pricing from the live catalog.</li>
         <li>Use one reference per BOM line when possible (<code>R1</code>, <code>U2</code>, etc.).</li>
@@ -218,5 +248,7 @@ datasheet_output_dir: docs/datasheets</pre>
   <div>bomi v__BUILD_VERSION__ &nbsp;·&nbsp; <a href="https://swiss.social/@somebox" target="_blank">Jeremy Seitz</a> &nbsp;·&nbsp; MIT license &nbsp;·&nbsp; built __BUILD_DATE__</div>
 </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
 </body>
 </html>

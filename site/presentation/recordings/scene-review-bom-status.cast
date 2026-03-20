@@ -1,4 +1,4 @@
-{"version": 3, "term": {"cols": 100, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773967583, "title": "Review BOM and Status", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
+{"version": 3, "term": {"cols": 100, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773968804, "title": "Review BOM and Status", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
 [0.35, "m", "scene-review-bom-status"]
 [0.0, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.043, "o", "b"]
@@ -13,13 +13,13 @@
 [0.045, "o", "\r\n"]
 [0.38, "o", "Ref    LCSC         Qty  Notes                             Pkg              Price    Stock\r\r\n"]
 [0.03, "o", "-----  ---------  -----  --------------------------------  ---------------  -------  ----------\r\r\n"]
-[0.03, "o", "C1     C14663         1  100nF input bypass                0603             $0.0027  46,826,520\r\r\n"]
-[0.03, "o", "C2     C13585         1  10uF input bulk cap               1206             $0.0615  1,649,148\r\r\n"]
-[0.03, "o", "D1     C8598          1  Schottky catch diode              SOD-123          $0.0245  875,038\r\r\n"]
+[0.03, "o", "C1     C14663         1  100nF input bypass                0603             $0.0027  46,701,881\r\r\n"]
+[0.03, "o", "C2     C13585         1  10uF input bulk cap               1206             $0.0615  1,644,055\r\r\n"]
+[0.03, "o", "D1     C8598          1  Schottky catch diode              SOD-123          $0.0245  875,008\r\r\n"]
 [0.03, "o", "J1     C456012        1  USB-C 6-pin power input           SMD              $0.0373  287,952\r\r\n"]
 [0.03, "o", "L1     C354577        1  47uH buck inductor                SMD,4x4mm        $0.0468  2,710\r\r\n"]
 [0.03, "o", "LED1   C3015100       1  White high-power LED placeholder  Plugin,P=5.08mm  $0.4057  74 ⚠\r\r\n"]
-[0.03, "o", "R1     C17888         1  Current set resistor placeholder  1206             $0.0038  1,900,478\r\r\n"]
+[0.03, "o", "R1     C17888         1  Current set resistor placeholder  1206             $0.0038  1,900,111\r\r\n"]
 [0.03, "o", "SW1    C49023761      1  Brightness up button              SMD              $0.0558  4,433\r\r\n"]
 [0.03, "o", "SW2    C49023761      1  Brightness down button            SMD              $0.0558  4,433\r\r\n"]
 [0.03, "o", "U1     C347356        1  PT4115 LED driver                 SOT-89-5         $0.0899  177,588\r\r\n"]

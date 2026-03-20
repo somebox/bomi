@@ -7,9 +7,9 @@ from .units import parse_filter_expr
 
 def parse_attr_filters(
     attr_exprs: list[str] | None = None,
-) -> list[tuple[str, str, float]]:
+) -> list[tuple[str, str, float | str]]:
     """Parse raw --attr expressions into normalized filters."""
-    attr_filters: list[tuple[str, str, float]] = []
+    attr_filters: list[tuple[str, str, float | str]] = []
     if not attr_exprs:
         return attr_filters
 

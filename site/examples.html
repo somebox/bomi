@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Examples — bomi</title>
-  <meta name="description" content="Command examples for bomi: search, filter, compare, BOM, datasheets.">
+  <meta name="description" content="Command examples for bomi: sync, search, query, filters, BOM, datasheets.">
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.css">
 </head>
 <body>
@@ -26,64 +27,131 @@
     <nav class="doc-nav">
       <div class="doc-nav-label">On this page</div>
       <ul>
-        <li><a href="#search">Basic search</a></li>
-        <li><a href="#filter">Attribute filtering</a></li>
+        <li><a href="#sync">Sync &amp; categories</a></li>
+        <li><a href="#search">Search</a></li>
+        <li><a href="#filter">Filters &amp; attributes</a></li>
         <li><a href="#formats">Output formats</a></li>
-        <li><a href="#cache">Local cache</a></li>
-        <li><a href="#inspect">Inspect &amp; compare</a></li>
+        <li><a href="#cache">Local cache (<code>query</code>)</a></li>
+        <li><a href="#inspect">Fetch, info, compare</a></li>
         <li><a href="#datasheets">Datasheets &amp; analysis</a></li>
-        <li><a href="#project">Project workflow</a></li>
+        <li><a href="#project">Project &amp; BOM</a></li>
         <li><a href="#db">Database</a></li>
       </ul>
     </nav>
 
     <div class="doc-content">
       <div class="section-label">Examples</div>
-      <h1 style="font-size:1.6rem;margin-bottom:0.5rem">Command Examples</h1>
-      <p style="color:var(--text-dim);font-size:0.875rem;margin-bottom:2rem">
-        Practical examples for all current commands. All examples assume <code>bomi</code> is installed
-        and available on your PATH.
+      <h1 class="doc-page-title">Command Examples</h1>
+      <p class="doc-lede">
+        Each block is one command, with a short explanation or sample output underneath.
+        Terminal recordings demonstrate multi-step flows in context.
       </p>
 
-      <h2 id="search">Basic search</h2>
-      <pre>bomi search "10k 0402 resistor"
-
-bomi search "100nF capacitor" --basic-only
-
-bomi search "LED" --preferred-only --min-stock 1000
-
-bomi search "STM32" --pages 3 --limit 50</pre>
-      <p>
-        <code>search</code> queries the live JLCPCB catalog and caches results locally.
-        Use <code>--basic-only</code> to restrict to JLCPCB basic parts (lower assembly cost).
-        Use <code>--preferred-only</code> for JLCPCB preferred parts.
+      <h2 id="sync">Sync &amp; categories</h2>
+      <p class="doc-section-intro">
+        Run <code>sync</code> before <code>search --category</code> so the CLI can resolve subcategory names. Browse names with <code>categories</code>.
       </p>
+
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi sync</code></pre>
+        <p class="ex"><strong>Fetches</strong> the JLCPCB category tree into your shared cache (skips if data is fresh; use <code>--force</code> to refresh).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi sync --force</code></pre>
+        <p class="ex"><strong>Re-downloads</strong> categories regardless of age.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi categories</code></pre>
+        <p class="ex">Prints the full parent → child hierarchy with part counts.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi categories resistor</code></pre>
+        <p class="ex">Narrows the printed tree to categories whose names match <strong>resistor</strong>. Subcategory lines are the strings to pass to <code>search --category</code> (after <code>sync</code>).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "10k 0402" --category "Chip Resistor - Surface Mount" --limit 5</code></pre>
+        <p class="ex"><strong>Category-scoped search</strong>: the API filter uses the exact subcategory name; pick it from <code>bomi categories</code> output.</p>
+      </div>
+
       <div class="player-block">
-        <div class="player-label">search for USB-C connector and LED driver</div>
+        <div class="player-label">Recording: resistor categories, then search in “Chip Resistor - Surface Mount” (live API)</div>
+        <div class="ap-wrapper" id="player-categories-search"></div>
+      </div>
+
+      <h2 id="search">Search (live catalog)</h2>
+      <p class="doc-section-intro">
+        <code>search</code> hits JLCPCB and writes hits into <code>parts.db</code>. Combine with stock, library, category, and price options.
+      </p>
+
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "10k 0402 resistor"</code></pre>
+        <p class="ex"><strong>Default</strong> live keyword search; results are cached locally.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "10k" --category "Chip Resistor - Surface Mount"</code></pre>
+        <p class="ex"><strong>Server-side category</strong> filter after <code>sync</code>. Use an exact subcategory name (see <code>bomi categories</code>), not only a top-level parent.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "100nF" --category "MLCC"</code></pre>
+        <p class="ex"><strong>Substring</strong> category matching when picking the <code>--category</code> argument; the CLI resolves to the API name.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "100nF capacitor" --basic-only</code></pre>
+        <p class="ex"><strong>Basic library</strong> parts only (reduced assembly cost on JLCPCB).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "LED" --preferred-only --min-stock 1000</code></pre>
+        <p class="ex"><strong>Preferred</strong> parts with at least 1k stock (API-side filters).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "STM32" --pages 3 --limit 50</code></pre>
+        <p class="ex"><strong>Pagination</strong>: up to 3 × 50 rows before local trimming by <code>--attr</code> / <code>--package</code> / etc.</p>
+      </div>
+
+      <div class="player-block">
+        <div class="player-label">Recording: search USB-C and LED driver (live API)</div>
         <div class="ap-wrapper" id="player-search"></div>
       </div>
 
-      <h2 id="filter">Attribute filtering</h2>
-      <pre>bomi search "0402 resistor" --attr "Resistance >= 10k"
-
-bomi search "0402 capacitor" --attr "Voltage Rated >= 25"
-
-bomi search "MOSFET SOT-23" \
-  --attr "Drain Source Voltage (Vdss) >= 30" \
-  --attr "Continuous Drain Current (Id) >= 5"
-
-bomi search "LDO 3.3V" --max-price 0.50 --basic-only</pre>
-      <p>
-        Operators: <code>&gt;=</code> <code>&lt;=</code> <code>&gt;</code> <code>&lt;</code> <code>=</code> <code>!=</code>.
-        Multiple <code>--attr</code> flags are ANDed. SI prefixes are supported: <code>10k</code>, <code>100n</code>, <code>4.7u</code>, <code>1M</code>.
+      <h2 id="filter">Filters &amp; attributes</h2>
+      <p class="doc-section-intro">
+        <code>--attr "Name operator value"</code> works on <code>search</code> (after fetch) and <code>query</code> (SQL). Operators: <code>&gt;=</code> <code>&lt;=</code> <code>&gt;</code> <code>&lt;</code> <code>=</code> <code>!=</code>. SI prefixes: <code>10k</code>, <code>100n</code>, <code>4.7u</code>. Multiple <code>--attr</code> are ANDed.
       </p>
 
-      <h2 id="formats">Output formats</h2>
-      <p>Most commands accept <code>--format table|json|csv|markdown</code>.</p>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "0402 resistor" --attr "Resistance >= 10k"</code></pre>
+        <p class="ex"><strong>Numeric</strong> parametric filter on normalized attributes.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "0402 capacitor" --attr "Voltage Rated >= 25"</code></pre>
+        <p class="ex">Another numeric example (name must match the catalog attribute label).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "MOSFET SOT-23" --attr "Drain Source Voltage (Vdss) >= 30" --attr "Continuous Drain Current (Id) >= 5"</code></pre>
+        <p class="ex"><strong>Two attributes</strong>; both must match.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "LDO 3.3V" --max-price 0.50 --basic-only</code></pre>
+        <p class="ex"><strong>Price cap</strong> uses qty-1 pricing; combined with basic parts only.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi query --category "Slide Switches" --attr "Circuit = SP3T"</code></pre>
+        <p class="ex"><strong>Local cache</strong>: category substring on stored <code>parts.category</code>, plus string equality on raw attribute text.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi query --category "Chip Resistor" --basic-only --attr "Resistance >= 10k"</code></pre>
+        <p class="ex">Typical <strong>offline</strong> narrow-down after you have already populated the cache with <code>search</code> / <code>fetch</code>.</p>
+      </div>
 
-      <h3>Search as JSON</h3>
-      <pre>bomi search "10k resistor" --format json</pre>
-      <pre>{
+      <h2 id="formats">Output formats</h2>
+      <p class="doc-section-intro">
+        Most research commands accept <code>--format table|json|csv|markdown</code>. Agents often want JSON.
+      </p>
+
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "10k resistor" --format json</code></pre>
+        <div class="out-label">Envelope shape (truncated)</div>
+        <pre class="json-out"><code class="language-json">{
   "status": "ok",
   "command": "search",
   "count": 2,
@@ -97,11 +165,14 @@ bomi search "LDO 3.3V" --max-price 0.50 --basic-only</pre>
       "price_qty1": 0.0037
     }
   ]
-}</pre>
+}</code></pre>
+      </div>
 
-      <h3>BOM as JSON</h3>
-      <pre>bomi list --format json</pre>
-      <pre>{
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi list --format json</code></pre>
+        <p class="ex"><strong>BOM JSON</strong> uses <code>"data"</code>, not <code>"results"</code> — important for parsers. Same for <code>bom --format json</code>.</p>
+        <div class="out-label">Shape (truncated)</div>
+        <pre class="json-out"><code class="language-json">{
   "status": "ok",
   "command": "bom",
   "data": [
@@ -112,64 +183,101 @@ bomi search "LDO 3.3V" --max-price 0.50 --basic-only</pre>
       "warnings": []
     }
   ]
-}</pre>
-      <p>Note: <code>list</code> / <code>bom</code> JSON uses <code>"data"</code> instead of <code>"results"</code>.</p>
+}</code></pre>
+      </div>
 
-      <h2 id="cache">Local cache queries</h2>
-      <pre>bomi query
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi query "cap" --format csv</code></pre>
+        <p class="ex">Exports matching cached rows as CSV (no API calls).</p>
+      </div>
 
-bomi query "resistor" --package 0402
-
-bomi query --attr "Resistance >= 1k" --attr "Resistance <= 100k" --basic-only</pre>
-      <p>
-        <code>query</code> searches only the local cache — no network required.
-        Useful for scripting and offline filtering.
+      <h2 id="cache">Local cache (<code>query</code>)</h2>
+      <p class="doc-section-intro">
+        <code>query</code> never calls JLCPCB — only <code>parts.db</code>. Good for scripts and air-gapped filtering.
       </p>
 
-      <h2 id="inspect">Inspect and compare</h2>
-      <pre>bomi fetch C8287
-bomi info C8287
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi query</code></pre>
+        <p class="ex">Lists up to the default limit of cached parts (all rows if no keyword).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi query "resistor" --package 0402</code></pre>
+        <p class="ex"><strong>Substring</strong> match on description / MFR / LCSC, plus package substring.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi query --category "Chip Resistor"</code></pre>
+        <p class="ex">Restricts to cached rows whose <code>category</code> field contains the string.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi query --attr "Resistance >= 1k" --attr "Resistance <= 100k" --basic-only</code></pre>
+        <p class="ex">Brackets a resistance window on cached attributes; basic parts only.</p>
+      </div>
 
-bomi fetch C8287 C25900
-bomi compare C8287 C25900
+      <h2 id="inspect">Fetch, info, compare</h2>
 
-bomi fetch C8287 --force</pre>
-      <p>
-        <code>fetch</code> caches one or more parts. <code>--force</code> refreshes even if the part was recently cached.
-        <code>info</code> shows full specs, attributes, and links. <code>compare</code> shows a side-by-side table.
-      </p>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi fetch C8287</code></pre>
+        <p class="ex">Resolves one LCSC code via search API and upserts the normalized part.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi fetch C8287 --force</code></pre>
+        <p class="ex">Refreshes even when the row is younger than the default cache window.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi fetch C8287 C25900</code></pre>
+        <p class="ex"><strong>Batch</strong> fetch by listing multiple codes.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi info C8287</code></pre>
+        <p class="ex">Long-form view: attributes, pricing tiers, datasheet URL, JLCPCB link.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi info R1</code></pre>
+        <p class="ex">When run inside a project, resolves designator <code>R1</code> to an LCSC from <code>project.yaml</code>.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi compare C8287 C25900</code></pre>
+        <p class="ex">Side-by-side table of fields and union of attribute names.</p>
+      </div>
+
       <div class="player-block">
-        <div class="player-label">fetch and inspect a part</div>
+        <div class="player-label">Recording: fetch and inspect a part</div>
         <div class="ap-wrapper" id="player-inspect"></div>
       </div>
       <div class="player-block">
-        <div class="player-label">compare two switch options</div>
+        <div class="player-label">Recording: compare two switch options</div>
         <div class="ap-wrapper" id="player-compare"></div>
       </div>
 
-      <h2 id="datasheets">Datasheets</h2>
-      <pre>bomi fetch C347356
-bomi analyze C347356 \
-  --prompt "Summarize power rating and operating temperature range"
-
-bomi analyze C347356 --model "anthropic/claude-sonnet-4.6"
-
-bomi datasheet C347356 --pdf -o docs/datasheets/
-
-bomi datasheet C347356 --pdf --summary -o docs/datasheets/</pre>
-      <p>
-        <code>analyze</code> sends the datasheet PDF to OpenRouter and returns structured markdown.
-        <code>datasheet --summary</code> writes a <code>.md</code> file alongside the PDF.
-        Both require an OpenRouter API key.
+      <h2 id="datasheets">Datasheets &amp; analysis</h2>
+      <p class="doc-section-intro">
+        Needs a working OpenRouter key for <code>analyze</code> and for <code>datasheet --summary</code>.
       </p>
 
-      <p>
-        The default prompt already asks for specs, pins, application values, and design notes.
-        Running without <code>--prompt</code> gives useful output for most parts:
-      </p>
-      <pre>bomi analyze C347356</pre>
-      <p>Add <code>--prompt</code> only when you need something specific:</p>
-      <pre>bomi analyze C347356 --prompt "What is the sense resistor formula for 350mA output?"</pre>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi fetch C347356</code></pre>
+        <p class="ex">Ensure the part (and datasheet URL) is cached before analysis.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi analyze C347356</code></pre>
+        <p class="ex">Default prompt returns markdown: key specs, pins, application hints, limits.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi analyze C347356 --prompt "What is the sense resistor formula for 350mA output?"</code></pre>
+        <p class="ex"><strong>Targeted</strong> question when the default overview is not enough.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi analyze C347356 --model "anthropic/claude-sonnet-4.6"</code></pre>
+        <p class="ex">Override the model for this run (see global <code>default_model</code> in config).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi datasheet C347356 --pdf -o docs/datasheets/</code></pre>
+        <p class="ex">Downloads the PDF to the given folder (creates paths as needed).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi datasheet C347356 --pdf --summary -o docs/datasheets/</code></pre>
+        <p class="ex">Writes <code>.pdf</code> and a <code>.md</code> summary next to it via OpenRouter.</p>
+      </div>
 
       <div class="analysis-card">
         <div class="analysis-card-header">
@@ -292,63 +400,91 @@ Use inductors with saturation current rated at 1.3–1.5× I_OUT.
 **PCB layout:** solder the exposed pad to PCB ground for heat dissipation. Keep high-current traces (VIN → R_S → LED → L → SW) short and wide. Add ≥4.7 µF X7R bypass cap close to VIN.
       </script>
 
-      <h2 id="project">Project workflow</h2>
+      <h2 id="project">Project &amp; BOM</h2>
+      <p class="doc-section-intro">
+        Project commands need <code>.bomi/project.yaml</code> (or <code>--project</code> / <code>BOMI_PROJECT</code>).
+      </p>
 
-      <h3>Start a new project</h3>
-      <pre>mkdir my-board &amp;&amp; cd my-board
-git init
-bomi init --name "my-board" --description "Motor driver board"</pre>
-
-      <h3>Research and select components</h3>
-      <pre>bomi search "100nF 0402 X7R"
-bomi fetch C1525
-bomi info C1525
-
-bomi select C1525 --ref C1 --qty 1 --notes "Bypass cap"
-bomi select C1525 --ref C2 --qty 1 --notes "Bypass cap"
-bomi select C347356 --ref U2 --qty 1 --notes "LED driver"</pre>
-
-      <h3>BOM review</h3>
-      <pre>bomi list
-bomi list --check
-bomi list --format csv
-bomi list --format markdown
-bomi status</pre>
-      <div class="player-block">
-        <div class="player-label">list + status — cost rollup and stock summary</div>
-        <div class="ap-wrapper" id="player-bom"></div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">mkdir my-board &amp;&amp; cd my-board</code></pre>
+        <p class="ex">Create a directory for the PCB repo (shell setup, not a <code>bomi</code> subcommand).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">git init</code></pre>
+        <p class="ex">Optional version control before <code>bomi init</code>.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi init --name "my-board" --description "Motor driver board"</code></pre>
+        <p class="ex">Writes <code>.bomi/project.yaml</code> and can append datasheet lines to <code>.gitignore</code>.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi search "100nF 0402 X7R"</code></pre>
+        <p class="ex">Research before selecting a line item.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi fetch C1525</code></pre>
+        <p class="ex">Pin exact LCSC data in the cache.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi select C1525 --ref C1 --qty 1 --notes "Bypass cap"</code></pre>
+        <p class="ex">Adds a BOM line; fetches automatically if the part is missing.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi list</code></pre>
+        <p class="ex">Table of refs with package, price, stock; warnings for low stock or missing cache.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi list --check</code></pre>
+        <p class="ex">Refreshes each selected LCSC from the live API, then re-displays.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi list --format markdown</code></pre>
+        <p class="ex">Export a rich markdown BOM (grouped line items, detail tables).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi status</code></pre>
+        <p class="ex">Text summary: cost roll-up at qty-1 pricing and consolidated warnings.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi relabel R1 R3</code></pre>
+        <p class="ex">Renames a designator in <code>project.yaml</code> with overlap checks.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi deselect C2</code></pre>
+        <p class="ex">Removes the selection with ref <code>C2</code>.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi --project ~/Projects/my-board list</code></pre>
+        <p class="ex">Run BOM commands from another working directory.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">export BOMI_PROJECT=~/Projects/my-board</code></pre>
+        <p class="ex">Persists project path for the shell session (alternative to repeated <code>--project</code>).</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">git add "$BOMI_PROJECT/.bomi/project.yaml" &amp;&amp; git commit -m "BOM: update selections"</code></pre>
+        <p class="ex">Commit the project file when paths differ (adjust to your layout).</p>
       </div>
 
-      <h3>Refine and export</h3>
-      <pre>bomi relabel R1 R3
-bomi deselect C2
-bomi list --check
-bomi list --format csv
-bomi list --format json</pre>
       <div class="player-block">
-        <div class="player-label">relabel, validate, and export BOM</div>
+        <div class="player-label">Recording: list + status — cost and stock</div>
+        <div class="ap-wrapper" id="player-bom"></div>
+      </div>
+      <div class="player-block">
+        <div class="player-label">Recording: relabel, validate, export</div>
         <div class="ap-wrapper" id="player-refine"></div>
       </div>
 
-      <h3>Work from outside the project directory</h3>
-      <pre>bomi --project ~/Projects/my-board list
+      <h2 id="db">Database</h2>
 
-export BOMI_PROJECT=~/Projects/my-board
-bomi status</pre>
-
-      <h3>Commit the result</h3>
-      <pre>git add .bomi/project.yaml
-git commit -m "Select initial BOM components"</pre>
-
-      <h2 id="db">Database commands</h2>
-      <pre>bomi db stats
-
-bomi db clear</pre>
-      <p>
-        The shared cache lives at <code>~/Library/Application Support/bomi/parts.db</code> on macOS
-        or <code>~/.local/share/bomi/parts.db</code> on Linux.
-        <code>db clear</code> wipes all cached parts — they can be re-fetched at any time.
-      </p>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi db stats</code></pre>
+        <p class="ex">Row counts for parts, attributes, analyses, categories.</p>
+      </div>
+      <div class="example-item">
+        <pre class="cmd"><code class="language-bash">bomi db clear</code></pre>
+        <p class="ex">Destructive reset of the shared cache (prompts for confirmation). Paths: macOS <code>~/Library/Application Support/bomi/parts.db</code>, Linux <code>~/.local/share/bomi/parts.db</code>.</p>
+      </div>
 
     </div>
   </div>
@@ -385,6 +521,7 @@ bomi db clear</pre>
 </script>
 <script>
   const opts75 = { cols: 75, autoPlay: false, loop: false, theme: 'monokai', fit: false, terminalFontSize: '11px' };
+  AsciinemaPlayer.create('presentation/recordings/scene-example-categories-search.cast', document.getElementById('player-categories-search'), opts75);
   AsciinemaPlayer.create('presentation/recordings/scene-search-core-parts.cast',    document.getElementById('player-search'),  opts75);
   AsciinemaPlayer.create('presentation/recordings/scene-inspect-driver.cast',        document.getElementById('player-inspect'), opts75);
   AsciinemaPlayer.create('presentation/recordings/scene-compare-switch-options.cast',document.getElementById('player-compare'), opts75);
@@ -392,5 +529,7 @@ bomi db clear</pre>
     { cols: 100, autoPlay: false, loop: false, theme: 'monokai', fit: false, terminalFontSize: '11px' });
   AsciinemaPlayer.create('presentation/recordings/scene-refine-validate.cast',       document.getElementById('player-refine'), opts75);
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
 </body>
 </html>

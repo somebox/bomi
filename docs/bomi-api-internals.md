@@ -122,6 +122,16 @@ The page is a Nuxt.js app that embeds an `allPartsList` array in an IIFE. Each t
 
 Category names from this page correspond to the `componentType` API filter and the `firstSortName` / `componentTypeEn` fields in search results. Top-level parent names (e.g. "Capacitors") are not valid `componentType` values — only subcategory-level names work for API filtering.
 
+## Python module layout (CLI implementation)
+
+| Module | Role |
+|--------|------|
+| `cli.py` | Click entrypoint; orchestrates commands. |
+| `categories.py` | `query` category validation vs synced tree; `search` substring resolution to an exact API subcategory name. |
+| `filters.py` | Shared logic for package/stock/max-price/`--attr` between post-API filtering (`apply_post_fetch_filters`) and `Database.query_parts` (via `append_attr_filter_sql`). The module docstring lists intentional differences: API-only `basic`/`preferred` for live search, and different `--category` semantics (`search` vs `query`). |
+| `output.py` | Part formatters; BOM JSON/CSV/markdown/table for `list` / `bom`. |
+| `db.py` | SQLite access; `Database` implements `__enter__` / `__exit__` for `with Database(path) as db`. |
+
 ## Implementation Boundaries
 
 The current implementation does not do these things:

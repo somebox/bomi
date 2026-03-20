@@ -40,6 +40,22 @@ scenes:
       - cmd: "bomi search \"PT4115 LED driver\" --limit 5"
         pause_after: 1.0
 
+  # Examples page only: browse resistor subcategories, then live search in one.
+  - id: scene-example-categories-search
+    title: "Categories and category search"
+    cols: 75
+    rows: 32
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
+    line_delay: 0.03
+    commands:
+      - cmd: "bomi sync"
+        hidden: true
+        pause_after: 0.12
+      - cmd: "bomi categories resistor"
+        pause_after: 1.0
+      - cmd: "bomi search \"10k 0402\" --category \"Chip Resistor - Surface Mount\" --limit 5"
+        pause_after: 1.2
+
   - id: scene-inspect-driver
     title: "Fetch and Inspect Driver"
     cols: 75

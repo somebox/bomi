@@ -1,4 +1,4 @@
-{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773967578, "title": "Search Core Parts", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
+{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773968800, "title": "Search Core Parts", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
 [0.35, "m", "scene-search-core-parts"]
 [0.0, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.026, "o", "b"]
@@ -56,7 +56,7 @@
 [0.03, "o", "C53207139  TYPE-C-P6    BXCONN          SMD           1430  $0.0450  Ext\r\r\n"]
 [0.03, "o", "C53207798  TYPE-C 6P    JXTCONN         SMD           1410  $0.0450  Ext\r\r\n"]
 [0.03, "o", "C53207144  TYPE-C-14P   BXCONN          Plugin         460  $0.2775  Ext\r\r\n"]
-[0.03, "o", "C393939    TYPE-C16PIN  SHOU HAN        SMD         323060  $0.0690  Ext\r\r\n"]
+[0.03, "o", "C393939    TYPE-C16PIN  SHOU HAN        SMD         322860  $0.0690  Ext\r\r\n"]
 [0.0, "o", "\r\n"]
 [1.0, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.045, "o", "b"]

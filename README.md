@@ -199,9 +199,9 @@ Filter syntax:
 --attr "AttributeName operator value"
 ```
 
-Supported operators: `>=`, `<=`, `>`, `<`, `=`
+Supported operators: `>=`, `<=`, `>`, `<`, `=`, and `!=` (mainly for non-numeric attribute values).
 
-Values support SI prefixes such as `10k`, `100n`, and `4.7u`. Non-numeric values use exact string matching with `=`.
+Values support SI prefixes such as `10k`, `100n`, and `4.7u`. Non-numeric values use string matching with `=` or `!=`.
 
 Examples:
 
@@ -212,6 +212,10 @@ bomi query --attr "Capacitance <= 100n"
 bomi search "RGB LED" --attr "Forward Current >= 100mA"
 bomi query --category "Slide Switches" --attr "Circuit = SP3T"
 ```
+
+### `search` vs `query` filters
+
+For **package**, **minimum stock**, **maximum price** (qty-1 tier), and **`--attr`** filters, the same rules are applied after a live `search` (in-memory, on normalized parts) and inside the local `query` path (SQL). The **`--basic-only`** and **`--preferred-only`** flags apply on the JLCPCB API for `search` only; they are enforced in SQL for `query` but are not re-applied locally after a `search`. **`--category`** for `search` resolves to an exact synced subcategory name for the API; for `query` it is a substring match on cached `parts.category`.
 
 ## Data Locations
 
@@ -226,16 +230,18 @@ bomi query --category "Slide Switches" --attr "Circuit = SP3T"
 
 ```text
 src/bomi/
-  api.py        HTTP client for JLCPCB search and detail endpoints
-  analysis.py   datasheet download and OpenRouter analysis
-  cli.py        Click command definitions and output orchestration
-  config.py     config and path handling
-  db.py         SQLite schema and persistence
-  normalize.py  API response normalization
-  output.py     table/json/csv/markdown formatters
-  project.py    project file and BOM handling
-  scrape.py     category tree scraper for JLCPCB
-  search.py     local cache query helpers
+  api.py         HTTP client for JLCPCB search and detail endpoints
+  analysis.py    datasheet download and OpenRouter analysis
+  categories.py  category validation (query) and API name resolution (search)
+  cli.py         Click command definitions and output orchestration
+  config.py      config and path handling
+  db.py          SQLite schema and persistence (Database supports `with ... as db`)
+  filters.py     shared package/stock/price/--attr rules for search vs query
+  normalize.py   API response normalization
+  output.py      table/json/csv/markdown formatters and BOM views for list/bom
+  project.py     project file and BOM handling
+  scrape.py      category tree scraper for JLCPCB
+  search.py      local cache query helpers
 ```
 
 ## Website and demo assets

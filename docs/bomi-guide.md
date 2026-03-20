@@ -7,8 +7,9 @@ Use `bomi` for JLCPCB/LCSC part research and project BOM updates. Prefer it over
 ## Quick Rules
 
 - `sync` fetches the JLCPCB category tree and caches it locally (skips if <24h old).
-- `search` is live and also updates the local cache. Use `--category` to filter by category (requires `sync` first).
+- `search` is live and also updates the local cache. Use `--category` to filter by category (requires `sync` first); the CLI resolves that to an exact API subcategory name. `query --category` uses a substring match on cached `parts.category` instead.
 - `query` is local-cache only — fast and offline.
+- `--package`, `--min-stock`, `--max-price`, and `--attr` share the same rules between `search` (applied after results are normalized) and `query` (SQL). `--basic-only` / `--preferred-only` are enforced on the API for `search` and in SQL for `query`, but are not re-checked locally after a `search`.
 - `info`, `compare`, `analyze`, and `datasheet` need the part in the local cache first — run `fetch` if needed.
 - `select` fetches the part automatically if it is not already cached.
 - `select`, `list`/`bom`, `status`, `deselect`, and `relabel` need project context (a `.bomi/project.yaml` in the tree).
@@ -73,7 +74,7 @@ bomi query --category "Chip Resistor" --basic-only --attr "Resistance >= 10k"
 bomi query --basic-only --attr "Capacitance <= 100n"
 ```
 
-Attribute operators: `>=` `<=` `>` `<` `=`.
+Attribute operators: `>=` `<=` `>` `<` `=` `!=` (non-numeric / string attributes).
 Values support SI prefixes: `10k`, `100n`, `4.7u`.
 Non-numeric values use exact string matching with `=`: `"Circuit = SP3T"`.
 Multiple `--attr` flags are ANDed together.

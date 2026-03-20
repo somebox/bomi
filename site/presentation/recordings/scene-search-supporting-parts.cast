@@ -1,4 +1,4 @@
-{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773967581, "title": "Search Supporting Power Parts", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
+{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773968802, "title": "Search Supporting Power Parts", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
 [0.35, "m", "scene-search-supporting-parts"]
 [0.0, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.042, "o", "b"]
@@ -63,11 +63,11 @@
 [0.03, "o", "\r\n"]
 [0.38, "o", "LCSC    MFR Part    Manufacturer     Package          Stock  Price    Type\r\r\n"]
 [0.03, "o", "------  ----------  ---------------  -------------  -------  -------  ------\r\r\n"]
-[0.03, "o", "C8598   B5819W SL   Jiangsu Changji  SOD-123         875038  $0.0245  Basic\r\r\n"]
-[0.03, "o", "C2480   SS14        MDD(Microdiode   SMA(DO-214AC)  1954928  $0.0165  Basic\r\r\n"]
-[0.03, "o", "C8678   SS34        MDD(Microdiode   SMA(DO-214AC)  2010791  $0.0295  Basic\r\r\n"]
-[0.03, "o", "C14996  SS210       MDD(Microdiode   SMA(DO-214AC)  1240628  $0.0284  Basic\r\r\n"]
-[0.03, "o", "C22452  SS54        MDD(Microdiode   SMA(DO-214AC)  1048019  $0.0357  Basic\r\r\n"]
+[0.03, "o", "C8598   B5819W SL   Jiangsu Changji  SOD-123         875008  $0.0245  Basic\r\r\n"]
+[0.03, "o", "C2480   SS14        MDD(Microdiode   SMA(DO-214AC)  1954805  $0.0165  Basic\r\r\n"]
+[0.03, "o", "C8678   SS34        MDD(Microdiode   SMA(DO-214AC)  2010709  $0.0295  Basic\r\r\n"]
+[0.03, "o", "C14996  SS210       MDD(Microdiode   SMA(DO-214AC)  1240618  $0.0284  Basic\r\r\n"]
+[0.03, "o", "C22452  SS54        MDD(Microdiode   SMA(DO-214AC)  1047690  $0.0357  Basic\r\r\n"]
 [0.0, "o", "\r\n"]
 [0.8, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.031, "o", "b"]

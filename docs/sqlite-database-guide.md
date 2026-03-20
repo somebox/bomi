@@ -222,4 +222,5 @@ ORDER BY name;
 - `query`, `info`, `compare`, and project BOM enrichment all depend on it.
 - The `categories` and `sync_meta` tables are populated by `bomi sync` and used by `bomi categories` and `bomi search --category`.
 - The CLI currently loads full part objects by joining through `parts`, `prices`, and `attributes` in Python rather than through SQL views.
+- Attribute filter EXISTS clauses in `query_parts` are built by `filters.append_attr_filter_sql`, kept in sync with in-memory filtering after live `search` (`filters.apply_post_fetch_filters`).
 - See `docs/review-issues.md` for open design and performance follow-ups around query behavior.

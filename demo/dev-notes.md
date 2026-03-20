@@ -6,7 +6,7 @@ This document is for maintainers of the demo slide deck and generated terminal r
 
 - Source files:
   - `demo/script.md` (story flow and narration)
-  - `demo/generator/scenes.yaml` (recording scenario definitions)
+  - `demo/generator/scenes.yaml` (recording scenario definitions; includes `scene-example-categories-search` for `site/examples.html`, not the Reveal deck)
   - `demo/generator/cast_generator.py` (cast generation logic)
   - `demo/generator/make_agent_demo.py` (synthetic agent cast)
   - `demo/presentation/index.html` (slide deck source; copied into `site/` on regen)
