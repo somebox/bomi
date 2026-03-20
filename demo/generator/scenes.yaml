@@ -3,7 +3,7 @@ scenes:
     title: "Setup Project"
     cols: 75
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project"
+    working_dir: "demo/presentation/demo-project"
     typing_delay_min: 0.025
     typing_delay_max: 0.06
     line_delay: 0.04
@@ -21,7 +21,7 @@ scenes:
     title: "Initialize bomi Project"
     cols: 75
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
     commands:
       - cmd: "bomi init --name \"usb-led-flashlight\" --description \"USB-C powered LED flashlight with brightness buttons\""
         pause_after: 1.0
@@ -32,7 +32,7 @@ scenes:
     title: "Search Core Parts"
     cols: 75
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
       - cmd: "bomi search \"USB Type-C connector SMD\" --limit 5"
@@ -44,7 +44,7 @@ scenes:
     title: "Fetch and Inspect Driver"
     cols: 75
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
       - cmd: "bomi fetch C347356"
@@ -56,7 +56,7 @@ scenes:
     title: "Search Supporting Power Parts"
     cols: 75
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
       - cmd: "bomi search \"Schottky diode SOD-123\" --basic-only --limit 5"
@@ -70,7 +70,7 @@ scenes:
     title: "Compare Switch Options"
     cols: 75
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
       - cmd: "bomi fetch C145837"
@@ -82,7 +82,7 @@ scenes:
     title: "Select BOM Parts"
     cols: 75
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     min_pause_after: 0.12
     commands:
@@ -117,10 +117,10 @@ scenes:
     title: "Review BOM and Status"
     cols: 100
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
-      - cmd: "bomi bom"
+      - cmd: "bomi list"
         pause_after: 1.0
       - cmd: "bomi status"
         pause_after: 1.0
@@ -129,7 +129,7 @@ scenes:
     title: "Refine and Validate"
     cols: 75
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
       - cmd: "bomi relabel C1 C99"
@@ -138,18 +138,18 @@ scenes:
         pause_after: 0.4
       - cmd: "bomi relabel C99 C2"
         pause_after: 0.4
-      - cmd: "bomi bom --check"
+      - cmd: "bomi list --check"
         pause_after: 0.8
-      - cmd: "bomi bom --format csv"
+      - cmd: "bomi list --format csv"
         pause_after: 0.4
-      - cmd: "bomi bom --format json"
+      - cmd: "bomi list --format json"
         pause_after: 0.8
 
   - id: scene-artifacts-and-git
     title: "Artifacts and Git State"
     cols: 75
     rows: 28
-    working_dir: "/Users/foz/src/jlcpcb-tool/demo/presentation/demo-project/usb-led-flashlight"
+    working_dir: "demo/presentation/demo-project/usb-led-flashlight"
     line_delay: 0.03
     commands:
       - cmd: "mkdir -p artifacts/datasheets"

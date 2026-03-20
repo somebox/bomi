@@ -27,7 +27,13 @@ def mock_db(tmp_path, sample_part):
 
 @pytest.fixture
 def patched_db(mock_db):
-    """Patch get_db to return our test database."""
+    """Patch get_db to return our test database.
+
+    The real close() is replaced with a no-op so that commands which open
+    and close the DB multiple times (e.g. search --category) don't break
+    subsequent calls that reuse the same patched instance.
+    """
+    mock_db.close = lambda: None
     with patch("bomi.cli.get_db", return_value=mock_db):
         yield mock_db
 
@@ -116,6 +122,29 @@ class TestQuery:
         result = runner.invoke(cli, ["query", "--attr", "Resistance >= 5k"])
         assert result.exit_code == 0
         assert "C8287" in result.output
+
+    def test_query_category_valid(self, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["query", "--category", "Chip Resistor"])
+        assert result.exit_code == 0
+        assert "C8287" in result.output
+
+    def test_query_category_invalid(self, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["query", "--category", "DefinitelyNotACategory"])
+        assert result.exit_code != 0
+        assert "No category matching" in result.output
+
+    def test_query_category_top_level_warns(self, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["query", "--category", "Resistors"])
+        assert result.exit_code == 0  # still runs
+        assert "top-level category" in result.output
+
+    def test_query_category_no_sync_skips_validation(self, runner, patched_db):
+        """Without synced categories, query should just run the substring match."""
+        result = runner.invoke(cli, ["query", "--category", "Chip Resistor"])
+        assert result.exit_code == 0
 
 
 class TestCompare:
@@ -396,6 +425,130 @@ class TestSearch:
         result = runner.invoke(cli, ["search", "10k"])
         assert result.exit_code != 0
         assert "JLCPCB search failed" in result.output
+
+
+SAMPLE_CATEGORIES = [
+    {"name": "Resistors", "parent": None, "sort_id": None, "part_count": 1000},
+    {"name": "Chip Resistor - Surface Mount", "parent": "Resistors", "sort_id": 2980, "part_count": 500},
+    {"name": "Through Hole Resistors", "parent": "Resistors", "sort_id": 2295, "part_count": 300},
+    {"name": "Capacitors", "parent": None, "sort_id": None, "part_count": 2000},
+    {"name": "MLCC - SMD/SMT", "parent": "Capacitors", "sort_id": 2929, "part_count": 1500},
+]
+
+
+class TestSync:
+    @patch("bomi.scrape.fetch_jlcpcb_categories", return_value=SAMPLE_CATEGORIES)
+    def test_sync_fetches_categories(self, mock_fetch, runner, patched_db):
+        result = runner.invoke(cli, ["sync"])
+        assert result.exit_code == 0
+        assert "Synced 2 categories, 3 subcategories" in result.output
+        mock_fetch.assert_called_once()
+
+    @patch("bomi.scrape.fetch_jlcpcb_categories", return_value=SAMPLE_CATEGORIES)
+    def test_sync_skips_when_fresh(self, mock_fetch, runner, patched_db):
+        # Seed categories so sync_time is set
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["sync"])
+        assert result.exit_code == 0
+        assert "already synced" in result.output
+        mock_fetch.assert_not_called()
+
+    @patch("bomi.scrape.fetch_jlcpcb_categories", return_value=SAMPLE_CATEGORIES)
+    def test_sync_force_refetches(self, mock_fetch, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["sync", "--force"])
+        assert result.exit_code == 0
+        assert "Synced" in result.output
+        mock_fetch.assert_called_once()
+
+    @patch("bomi.scrape.fetch_jlcpcb_categories",
+           side_effect=requests.RequestException("timeout"))
+    def test_sync_network_error(self, mock_fetch, runner, patched_db):
+        result = runner.invoke(cli, ["sync"])
+        assert result.exit_code != 0
+        assert "Failed to fetch categories" in result.output
+
+
+class TestCategories:
+    def test_categories_no_cache(self, runner, patched_db):
+        result = runner.invoke(cli, ["categories"])
+        assert result.exit_code != 0
+        assert "Run 'bomi sync' first" in result.output
+
+    def test_categories_list_all(self, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["categories"])
+        assert result.exit_code == 0
+        assert "Resistors" in result.output
+        assert "Capacitors" in result.output
+        assert "Chip Resistor - Surface Mount" in result.output
+
+    def test_categories_filter(self, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["categories", "resistor"])
+        assert result.exit_code == 0
+        assert "Resistors" in result.output
+        assert "Chip Resistor - Surface Mount" in result.output
+        assert "Capacitors" not in result.output
+
+    def test_categories_filter_no_match(self, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["categories", "nonexistent"])
+        assert result.exit_code == 0
+        assert result.output.strip() == ""
+
+
+class TestSearchCategory:
+    @patch("bomi.cli.JLCPCBClient")
+    def test_search_with_category(self, mock_client_cls, runner, patched_db,
+                                   sample_search_response):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        mock_client = MagicMock()
+        mock_client.search.return_value = sample_search_response
+        mock_client_cls.return_value = mock_client
+
+        result = runner.invoke(cli, ["search", "10k", "--category", "Chip Resistor - Surface Mount"])
+        assert result.exit_code == 0
+        mock_client.search.assert_called_once()
+        call_kwargs = mock_client.search.call_args
+        assert call_kwargs.kwargs.get("component_type") == "Chip Resistor - Surface Mount"
+
+    def test_search_category_no_cache(self, runner, patched_db):
+        result = runner.invoke(cli, ["search", "10k", "--category", "Resistor"])
+        assert result.exit_code != 0
+        assert "Run 'bomi sync' first" in result.output
+
+    def test_search_category_no_match(self, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["search", "10k", "--category", "xyz"])
+        assert result.exit_code != 0
+        assert "No category matching" in result.output
+
+    def test_search_category_top_level_shows_children(self, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["search", "10k", "--category", "Resistors"])
+        assert result.exit_code != 0
+        assert "top-level category" in result.output
+        assert "Chip Resistor - Surface Mount" in result.output
+
+    @patch("bomi.cli.JLCPCBClient")
+    def test_search_category_substring_unique(self, mock_client_cls, runner,
+                                               patched_db, sample_search_response):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        mock_client = MagicMock()
+        mock_client.search.return_value = sample_search_response
+        mock_client_cls.return_value = mock_client
+
+        result = runner.invoke(cli, ["search", "10k", "--category", "MLCC"])
+        assert result.exit_code == 0
+        call_kwargs = mock_client.search.call_args
+        assert call_kwargs.kwargs.get("component_type") == "MLCC - SMD/SMT"
+
+    def test_search_category_ambiguous(self, runner, patched_db):
+        patched_db.upsert_categories(SAMPLE_CATEGORIES)
+        result = runner.invoke(cli, ["search", "10k", "--category", "Resistor"])
+        assert result.exit_code != 0
+        assert "matches multiple categories" in result.output
 
 
 class TestFetch:

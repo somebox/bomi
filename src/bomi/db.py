@@ -57,10 +57,25 @@ CREATE TABLE IF NOT EXISTS analyses (
     FOREIGN KEY (lcsc_code) REFERENCES parts(lcsc_code) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS categories (
+    name TEXT NOT NULL,
+    parent TEXT,
+    provider TEXT NOT NULL DEFAULT 'jlcpcb',
+    sort_id INTEGER,
+    part_count INTEGER,
+    PRIMARY KEY (name, provider)
+);
+
+CREATE TABLE IF NOT EXISTS sync_meta (
+    provider TEXT PRIMARY KEY,
+    synced_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_parts_category ON parts(category);
 CREATE INDEX IF NOT EXISTS idx_parts_package ON parts(package);
 CREATE INDEX IF NOT EXISTS idx_parts_stock ON parts(stock);
 CREATE INDEX IF NOT EXISTS idx_attr_name_num ON attributes(attr_name, attr_value_num);
+CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent);
 """
 
 
@@ -276,6 +291,7 @@ class Database:
     def query_parts(
         self,
         keyword: str | None = None,
+        category: str | None = None,
         package: str | None = None,
         min_stock: int | None = None,
         basic_only: bool = False,
@@ -297,6 +313,10 @@ class Database:
             )
             like = f"%{keyword}%"
             params.extend([like, like, like])
+
+        if category:
+            conditions.append("p.category LIKE ?")
+            params.append(f"%{category}%")
 
         if package:
             conditions.append("p.package LIKE ?")
@@ -322,13 +342,30 @@ class Database:
 
         if attr_filters:
             for attr_name, op, value in attr_filters:
-                sql_op = op if op != "=" else "="
-                conditions.append(
-                    f"EXISTS (SELECT 1 FROM attributes a "
-                    f"WHERE a.lcsc_code = p.lcsc_code "
-                    f"AND a.attr_name = ? AND a.attr_value_num {sql_op} ?)"
-                )
-                params.extend([attr_name, value])
+                if isinstance(value, str):
+                    # String comparison against raw attribute value
+                    if op == "!=":
+                        conditions.append(
+                            "EXISTS (SELECT 1 FROM attributes a "
+                            "WHERE a.lcsc_code = p.lcsc_code "
+                            "AND a.attr_name = ? AND a.attr_value_raw != ?)"
+                        )
+                    else:
+                        conditions.append(
+                            "EXISTS (SELECT 1 FROM attributes a "
+                            "WHERE a.lcsc_code = p.lcsc_code "
+                            "AND a.attr_name = ? AND a.attr_value_raw = ?)"
+                        )
+                    params.extend([attr_name, value])
+                else:
+                    # Numeric comparison against parsed value
+                    sql_op = op if op != "=" else "="
+                    conditions.append(
+                        f"EXISTS (SELECT 1 FROM attributes a "
+                        f"WHERE a.lcsc_code = p.lcsc_code "
+                        f"AND a.attr_name = ? AND a.attr_value_num {sql_op} ?)"
+                    )
+                    params.extend([attr_name, value])
 
         where = " AND ".join(conditions) if conditions else "1=1"
         sql = f"SELECT lcsc_code FROM parts p WHERE {where} ORDER BY p.stock DESC LIMIT ?"
@@ -336,3 +373,78 @@ class Database:
 
         rows = self.conn.execute(sql, params).fetchall()
         return [self.get_part(r["lcsc_code"]) for r in rows]
+
+    # ── Category methods ──────────────────────────────────────────────
+
+    def upsert_categories(
+        self,
+        categories: list[dict],
+        provider: str = "jlcpcb",
+    ):
+        """Replace all categories for a provider.
+
+        Each dict should have: name, parent (optional), sort_id (optional),
+        part_count (optional).
+        """
+        self.conn.execute(
+            "DELETE FROM categories WHERE provider = ?", (provider,)
+        )
+        for cat in categories:
+            self.conn.execute(
+                "INSERT INTO categories (name, parent, provider, sort_id, part_count) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    cat["name"],
+                    cat.get("parent"),
+                    provider,
+                    cat.get("sort_id"),
+                    cat.get("part_count"),
+                ),
+            )
+        now = datetime.now(timezone.utc).isoformat()
+        self.conn.execute(
+            "INSERT INTO sync_meta (provider, synced_at) VALUES (?, ?) "
+            "ON CONFLICT(provider) DO UPDATE SET synced_at = excluded.synced_at",
+            (provider, now),
+        )
+        self.conn.commit()
+
+    def get_categories(
+        self, provider: str = "jlcpcb", parent: str | None = None
+    ) -> list[dict]:
+        """Return categories, optionally filtered by parent."""
+        if parent is not None:
+            rows = self.conn.execute(
+                "SELECT * FROM categories WHERE provider = ? AND parent = ? "
+                "ORDER BY name",
+                (provider, parent),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM categories WHERE provider = ? ORDER BY parent, name",
+                (provider,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_sync_time(self, provider: str = "jlcpcb") -> datetime | None:
+        """Return last sync time for a provider, or None."""
+        row = self.conn.execute(
+            "SELECT synced_at FROM sync_meta WHERE provider = ?", (provider,)
+        ).fetchone()
+        if not row:
+            return None
+        try:
+            return datetime.fromisoformat(row["synced_at"])
+        except ValueError:
+            return None
+
+    def match_category(
+        self, query: str, provider: str = "jlcpcb"
+    ) -> list[str]:
+        """Return category names matching a case-insensitive substring."""
+        rows = self.conn.execute(
+            "SELECT DISTINCT name FROM categories WHERE provider = ? "
+            "AND name LIKE ? ORDER BY name",
+            (provider, f"%{query}%"),
+        ).fetchall()
+        return [r["name"] for r in rows]

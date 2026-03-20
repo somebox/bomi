@@ -8,12 +8,14 @@ This document is for maintainers of the demo slide deck and generated terminal r
   - `demo/script.md` (story flow and narration)
   - `demo/generator/scenes.yaml` (recording scenario definitions)
   - `demo/generator/cast_generator.py` (cast generation logic)
-  - `demo/presentation/index.html` (slide deck + player behavior)
+  - `demo/generator/make_agent_demo.py` (synthetic agent cast)
+  - `demo/presentation/index.html` (slide deck source; copied into `site/` on regen)
 - Generated files:
-  - `demo/presentation/recordings/*.cast`
+  - `site/presentation/recordings/*.cast` (CLI scenes + `scene-agent-bom-review.cast`)
+  - `site/presentation/index.html` (copy of demo deck for `/presentation/` on Pages)
   - `/tmp/bomi-cast-verify/*.txt` (verification artifacts, ephemeral)
 
-Treat generated casts as build outputs. Regenerate whenever source scenes or output formatting changes.
+Treat `site/presentation/*.cast` and `site/presentation/index.html` as **committed build outputs**: regenerate locally when scenes or generators change, then commit. The Pages workflow does not regenerate them.
 
 ## Standard Maintenance Workflow
 
@@ -22,27 +24,29 @@ Treat generated casts as build outputs. Regenerate whenever source scenes or out
 3. Regenerate all casts:
 
 ```bash
-python demo/generator/record_all.py
+python build_site.py
 ```
 
 4. Run and review the deck:
 
 ```bash
-python -m http.server 8000
-# open http://localhost:8000/demo/presentation/
+cd site && python -m http.server 8000
+# open http://localhost:8000/presentation/
 ```
 
 5. Verify that command summaries, timings, and table wrapping still look correct.
+6. Commit changes under `site/presentation/` (and any related HTML) before pushing—deploy expects pre-built casts.
 
 ## When You Must Regenerate Videos
 
-Regenerate `*.cast` when you change:
+Regenerate casts when you change:
 
 - `demo/generator/scenes.yaml` (commands, cols/rows, pauses, visibility)
 - `demo/generator/cast_generator.py` (typing speed, cursor behavior, output handling)
+- `demo/generator/make_agent_demo.py` (agent narrative / layout)
 - CLI output formatting that appears in recordings (for example `src/bomi/output.py`)
 
-You do **not** need regeneration for pure slide/CSS text edits in `demo/presentation/index.html`.
+Pure slide/CSS edits only require updating `site/presentation/index.html` (copy from `demo/presentation/index.html`, or run `build_site.py`, which recopies and also regenerates all casts).
 
 ## Scene Authoring Rules
 
@@ -108,13 +112,13 @@ If compare output overflows again, adjust truncation limits there first.
 ### Recordings don’t play in browser
 
 - Ensure you are using HTTP server mode, not `file://`.
-- Open:
-  - `http://localhost:8000/demo/presentation/`
+- Open (with `site/` as cwd):
+  - `http://localhost:8000/presentation/`
 
 ### `asciinema play` fails in non-interactive environment
 
 - Expected in some environments due to TTY requirements.
-- Use `record_all.py` verification (`asciinema convert -f txt`) instead.
+- Use `build_site.py` / `record_all.py` verification (`asciinema convert -f txt`) instead.
 
 ### Scene fails during generation
 
@@ -124,7 +128,7 @@ If compare output overflows again, adjust truncation limits there first.
 uv run python demo/generator/cast_generator.py \
   --scenes demo/generator/scenes.yaml \
   --scene scene-refine-validate \
-  --output-dir demo/presentation/recordings
+  --output-dir site/presentation/recordings
 ```
 
 Then inspect command validity in that scene.

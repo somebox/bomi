@@ -121,11 +121,16 @@ def _normalize_unit(unit_str: str) -> str | None:
     return unit_str.lower() if unit_str else None
 
 
-def parse_filter_expr(expr: str) -> tuple[str, str, float] | None:
-    """Parse a filter expression like 'Resistance >= 10k'.
+def parse_filter_expr(expr: str) -> tuple[str, str, float | str] | None:
+    """Parse a filter expression like 'Resistance >= 10k' or 'Circuit = SP3T'.
 
-    Returns (attr_name, operator, numeric_value) or None if invalid.
-    Supported operators: >=, <=, >, <, =, ==, !=
+    Returns (attr_name, operator, value) or None if invalid.
+
+    Numeric values are returned as float and compared against attr_value_num.
+    String values (only valid with ``=``) are returned as str and compared
+    against attr_value_raw.
+
+    Supported operators: >=, <=, >, <, =
     """
     # Match: attr_name operator value
     m = re.match(
@@ -140,11 +145,17 @@ def parse_filter_expr(expr: str) -> tuple[str, str, float] | None:
         op = "="
 
     num, _ = parse_value(value_str)
-    if num is None:
-        # Try plain number
-        try:
-            num = float(value_str)
-        except ValueError:
-            return None
+    if num is not None:
+        return attr_name, op, num
 
-    return attr_name, op, num
+    # Try plain number
+    try:
+        return attr_name, op, float(value_str)
+    except ValueError:
+        pass
+
+    # String value — only valid for equality operators
+    if op in ("=", "!="):
+        return attr_name, op, value_str
+
+    return None

@@ -64,6 +64,9 @@ The shared cache database is stored alongside the config as `parts.db`.
 ## First Use
 
 ```bash
+# 0. Sync the category tree (one-time, cached for 24h)
+bomi sync
+
 # 1. Search the live catalog
 bomi search "10k 0402 resistor"
 
@@ -135,9 +138,11 @@ export BOMI_PROJECT=/path/to/my-pcb-project
 
 | Command | Notes |
 |---------|-------|
-| `search <keyword>` | Live JLCPCB search, results are cached locally |
+| `sync` | Fetch and cache JLCPCB category tree (skips if <24h old, `--force` to refresh) |
+| `categories [query]` | List cached categories, optionally filtered by name |
+| `search <keyword>` | Live JLCPCB search, results are cached locally. `--category` filters server-side |
 | `fetch <codes>...` | Cache exact LCSC codes |
-| `query [keyword]` | Search the local cache only |
+| `query [keyword]` | Search the local cache only. `--category` filters by category |
 | `info <designator-or-code>` | Show one cached part by project designator (for example `R1`) or LCSC code |
 | `compare <codes>...` | Compare cached parts |
 | `analyze <code>` | Analyze one cached datasheet with OpenRouter |
@@ -194,17 +199,19 @@ Filter syntax:
 --attr "AttributeName operator value"
 ```
 
-Supported operators: `>=`, `<=`, `>`, `<`, `=`, `!=`
+Supported operators: `>=`, `<=`, `>`, `<`, `=`
+
+Values support SI prefixes such as `10k`, `100n`, and `4.7u`. Non-numeric values use exact string matching with `=`.
 
 Examples:
 
 ```bash
 bomi search "0402 resistor" --attr "Resistance >= 10k"
+bomi query --category "Chip Resistor" --attr "Resistance = 36k"
 bomi query --attr "Capacitance <= 100n"
 bomi search "RGB LED" --attr "Forward Current >= 100mA"
+bomi query --category "Slide Switches" --attr "Circuit = SP3T"
 ```
-
-Values support SI prefixes such as `10k`, `100n`, and `4.7u`.
 
 ## Data Locations
 
@@ -224,10 +231,22 @@ src/bomi/
   cli.py        Click command definitions and output orchestration
   config.py     config and path handling
   db.py         SQLite schema and persistence
+  normalize.py  API response normalization
   output.py     table/json/csv/markdown formatters
   project.py    project file and BOM handling
+  scrape.py     category tree scraper for JLCPCB
   search.py     local cache query helpers
 ```
+
+## Website and demo assets
+
+The static site under `site/` includes terminal demos in `site/presentation/`. To regenerate casts and copy the Reveal deck after editing `demo/generator/scenes.yaml` or `demo/presentation/index.html`:
+
+```bash
+python build_site.py
+```
+
+Then commit the updated `site/presentation/` files. GitHub Pages only publishes what is in the repo; it does not run this script. Details: `demo/README.md`.
 
 ## Documentation
 

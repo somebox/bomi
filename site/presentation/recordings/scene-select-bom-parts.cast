@@ -1,4 +1,4 @@
-{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773875685, "title": "Select BOM Parts", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
+{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773967583, "title": "Select BOM Parts", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
 [0.35, "m", "scene-select-bom-parts"]
 [0.72, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.051, "o", "b"]
@@ -226,8 +226,7 @@
 [0.033, "o", "r"]
 [0.045, "o", "\""]
 [0.032, "o", "\r\n"]
-[0.38, "o", "Fetching C3015100...\r\r\n"]
-[0.03, "o", "Added LED1 → C3015100 (-40℃~+85℃ 20mA 3V 800mcd 80mW Cylindrical Lens White Plugin,P=5.08mm LED Indication - Discrete ROHS)\r\r\n"]
+[0.38, "o", "Added LED1 → C3015100 (-40℃~+85℃ 20mA 3V 800mcd 80mW Cylindrical Lens White Plugin,P=5.08mm LED Indication - Discrete ROHS)\r\r\n"]
 [0.0, "o", "\r\n"]
 [0.15, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.031, "o", "b"]

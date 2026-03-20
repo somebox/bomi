@@ -24,13 +24,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Terminal casts and site/presentation/ are generated locally (python build_site.py)
+      # and committed; deploy only substitutes version placeholders and uploads ./site.
+
       - name: Inject version and build date into site
         run: |
           VERSION=$(grep '^version' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
           BUILD_DATE=$(date +"%Y-%m-%d")
           echo "version: $VERSION  date: $BUILD_DATE"
-          sed -i "s/__BUILD_VERSION__/$VERSION/g" site/*.html
-          sed -i "s/__BUILD_DATE__/$BUILD_DATE/g" site/*.html
+          find site -name '*.html' -exec sed -i "s/__BUILD_VERSION__/$VERSION/g" {} +
+          find site -name '*.html' -exec sed -i "s/__BUILD_DATE__/$BUILD_DATE/g" {} +
 
       - uses: actions/configure-pages@v5
 

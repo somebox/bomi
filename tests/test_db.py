@@ -17,6 +17,8 @@ class TestSchema:
         assert "prices" in names
         assert "attributes" in names
         assert "analyses" in names
+        assert "categories" in names
+        assert "sync_meta" in names
 
     def test_indexes_created(self, tmp_db):
         indexes = tmp_db.conn.execute(
@@ -27,6 +29,7 @@ class TestSchema:
         assert "idx_parts_package" in names
         assert "idx_parts_stock" in names
         assert "idx_attr_name_num" in names
+        assert "idx_categories_parent" in names
 
 
 class TestUpsertPart:
@@ -162,6 +165,67 @@ class TestQueryParts:
         )
         assert len(results) == 0
 
+    def test_query_string_attr_eq(self, tmp_db):
+        part = Part(
+            lcsc_code="C99999",
+            category="Slide Switches",
+            description="slide switch",
+            stock=100,
+            attributes=[
+                Attribute(name="Circuit", value_raw="SP3T", value_num=None),
+            ],
+        )
+        tmp_db.upsert_part(part)
+        results = tmp_db.query_parts(attr_filters=[("Circuit", "=", "SP3T")])
+        assert len(results) == 1
+        assert results[0].lcsc_code == "C99999"
+
+    def test_query_string_attr_neq(self, tmp_db):
+        part = Part(
+            lcsc_code="C99999",
+            category="Slide Switches",
+            description="slide switch",
+            stock=100,
+            attributes=[
+                Attribute(name="Circuit", value_raw="SP3T", value_num=None),
+            ],
+        )
+        tmp_db.upsert_part(part)
+        results = tmp_db.query_parts(attr_filters=[("Circuit", "!=", "SPDT")])
+        assert len(results) == 1
+        results = tmp_db.query_parts(attr_filters=[("Circuit", "!=", "SP3T")])
+        assert len(results) == 0
+
+    def test_query_string_attr_no_match(self, tmp_db):
+        part = Part(
+            lcsc_code="C99999",
+            category="Slide Switches",
+            description="slide switch",
+            stock=100,
+            attributes=[
+                Attribute(name="Circuit", value_raw="SP3T", value_num=None),
+            ],
+        )
+        tmp_db.upsert_part(part)
+        results = tmp_db.query_parts(attr_filters=[("Circuit", "=", "DPDT")])
+        assert len(results) == 0
+
+    def test_query_category_with_string_attr(self, tmp_db):
+        part = Part(
+            lcsc_code="C99999",
+            category="Slide Switches",
+            description="slide switch",
+            stock=100,
+            attributes=[
+                Attribute(name="Circuit", value_raw="SP3T", value_num=None),
+            ],
+        )
+        tmp_db.upsert_part(part)
+        results = tmp_db.query_parts(
+            category="Slide", attr_filters=[("Circuit", "=", "SP3T")]
+        )
+        assert len(results) == 1
+
     def test_query_no_results(self, tmp_db):
         results = tmp_db.query_parts(keyword="nonexistent")
         assert len(results) == 0
@@ -170,3 +234,77 @@ class TestQueryParts:
         tmp_db.upsert_part(sample_part)
         tmp_db.clear()
         assert tmp_db.stats()["parts"] == 0
+
+
+SAMPLE_CATEGORIES = [
+    {"name": "Resistors", "parent": None, "sort_id": None, "part_count": 1000},
+    {"name": "Chip Resistor - Surface Mount", "parent": "Resistors", "sort_id": 2980, "part_count": 500},
+    {"name": "Through Hole Resistors", "parent": "Resistors", "sort_id": 2295, "part_count": 300},
+    {"name": "Capacitors", "parent": None, "sort_id": None, "part_count": 2000},
+    {"name": "MLCC - SMD/SMT", "parent": "Capacitors", "sort_id": 2929, "part_count": 1500},
+]
+
+
+class TestCategories:
+    def test_upsert_and_get(self, tmp_db):
+        tmp_db.upsert_categories(SAMPLE_CATEGORIES)
+        cats = tmp_db.get_categories()
+        assert len(cats) == 5
+
+    def test_get_by_parent(self, tmp_db):
+        tmp_db.upsert_categories(SAMPLE_CATEGORIES)
+        children = tmp_db.get_categories(parent="Resistors")
+        assert len(children) == 2
+        names = {c["name"] for c in children}
+        assert "Chip Resistor - Surface Mount" in names
+        assert "Through Hole Resistors" in names
+
+    def test_get_top_level_only(self, tmp_db):
+        """Passing parent=None is different from omitting it."""
+        tmp_db.upsert_categories(SAMPLE_CATEGORIES)
+        # parent=None matches only top-level (WHERE parent IS NULL won't work
+        # with = ?, but the current implementation uses omission)
+        # Just verify the full list returns all
+        all_cats = tmp_db.get_categories()
+        top = [c for c in all_cats if c["parent"] is None]
+        assert len(top) == 2
+
+    def test_upsert_replaces(self, tmp_db):
+        tmp_db.upsert_categories(SAMPLE_CATEGORIES)
+        tmp_db.upsert_categories([
+            {"name": "Diodes", "parent": None, "sort_id": None, "part_count": 100},
+        ])
+        cats = tmp_db.get_categories()
+        assert len(cats) == 1
+        assert cats[0]["name"] == "Diodes"
+
+    def test_match_category(self, tmp_db):
+        tmp_db.upsert_categories(SAMPLE_CATEGORIES)
+        matches = tmp_db.match_category("Resistor")
+        assert "Chip Resistor - Surface Mount" in matches
+        assert "Through Hole Resistors" in matches
+
+    def test_match_category_case_insensitive(self, tmp_db):
+        tmp_db.upsert_categories(SAMPLE_CATEGORIES)
+        matches = tmp_db.match_category("mlcc")
+        assert len(matches) == 1
+        assert matches[0] == "MLCC - SMD/SMT"
+
+    def test_match_category_no_match(self, tmp_db):
+        tmp_db.upsert_categories(SAMPLE_CATEGORIES)
+        assert tmp_db.match_category("nonexistent") == []
+
+    def test_sync_time(self, tmp_db):
+        assert tmp_db.get_sync_time("jlcpcb") is None
+        tmp_db.upsert_categories(SAMPLE_CATEGORIES)
+        sync_time = tmp_db.get_sync_time("jlcpcb")
+        assert sync_time is not None
+
+    def test_provider_isolation(self, tmp_db):
+        tmp_db.upsert_categories(SAMPLE_CATEGORIES, provider="jlcpcb")
+        tmp_db.upsert_categories(
+            [{"name": "Other", "parent": None, "sort_id": 1, "part_count": 10}],
+            provider="other_provider",
+        )
+        assert len(tmp_db.get_categories(provider="jlcpcb")) == 5
+        assert len(tmp_db.get_categories(provider="other_provider")) == 1

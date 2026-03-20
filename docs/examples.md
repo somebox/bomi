@@ -2,11 +2,34 @@
 
 This file focuses on commands that are implemented in the current CLI. For a structured agent reference, see `docs/bomi-guide.md` or [somebox.github.io/bomi/examples.html](https://somebox.github.io/bomi/examples.html).
 
+## Categories and Sync
+
+```bash
+# Fetch and cache the JLCPCB category tree (skips if already fresh)
+bomi sync
+
+# Force a refresh
+bomi sync --force
+
+# List all categories
+bomi categories
+
+# Filter categories by name
+bomi categories resistor
+bomi categories mosfet
+```
+
 ## Basic Search
 
 ```bash
 # Search for 10k resistors in 0402
 bomi search "10k 0402 resistor"
+
+# Search within a specific category
+bomi search "10k" --category "Chip Resistor - Surface Mount"
+
+# Category names are substring-matched
+bomi search "100nF" --category "MLCC"
 
 # Restrict to basic parts
 bomi search "100nF capacitor" --basic-only
@@ -21,10 +44,8 @@ bomi search "STM32" --pages 3 --limit 50
 ## Attribute Filtering
 
 ```bash
-# Find resistors >= 10k
+# Numeric filters with SI prefixes
 bomi search "0402 resistor" --attr "Resistance >= 10k"
-
-# Find capacitors rated for at least 25V
 bomi search "0402 capacitor" --attr "Voltage Rated >= 25"
 
 # AND multiple attribute filters together
@@ -32,7 +53,10 @@ bomi search "MOSFET SOT-23" \
   --attr "Drain Source Voltage (Vdss) >= 30" \
   --attr "Continuous Drain Current (Id) >= 5"
 
-# Add a price cap
+# String matching
+bomi query --category "Slide Switches" --attr "Circuit = SP3T"
+
+# Combine with price cap
 bomi search "LDO 3.3V" --max-price 0.50 --basic-only
 ```
 
@@ -65,7 +89,7 @@ bomi search "10k resistor" --format json
 ### BOM as JSON
 
 ```bash
-bomi bom --format json
+bomi list --format json
 ```
 
 ```json
@@ -91,6 +115,10 @@ bomi query
 
 # Query by keyword
 bomi query "resistor" --package 0402
+
+# Query by category (substring match against cached part data)
+bomi query --category "Chip Resistor"
+bomi query --category "MLCC" --attr "Capacitance >= 100n"
 
 # Query by attributes
 bomi query --attr "Resistance >= 1k" --attr "Resistance <= 100k" --basic-only

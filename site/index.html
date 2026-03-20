@@ -130,11 +130,11 @@ bomi select C347356 --ref U1
 git add .bomi &amp;&amp; git commit</pre>
       </div>
       <div class="feature-row">
-        <div class="feature-name">Cost management<small>status, bom --check</small></div>
+        <div class="feature-name">Cost management<small>status, list --check</small></div>
         <div class="feature-desc">Per-unit pricing at any quantity, BOM cost rollup, stock warnings, and live refresh from the catalog before ordering.</div>
         <pre class="feature-code">bomi status
-bomi bom --check
-bomi bom --format csv</pre>
+bomi list --check
+bomi list --format csv</pre>
       </div>
       <div class="feature-row">
         <div class="feature-name">Datasheet analysis<small>analyze, datasheet</small></div>
@@ -154,11 +154,11 @@ bomi datasheet C347356 \
         <div class="section-label">In action</div>
         <h2>BOM review and cost estimate</h2>
         <p>
-          <code>bomi bom</code> shows the full BOM with stock and pricing.
+          <code>bomi list</code> shows the full BOM with stock and pricing.
           <code>bomi status</code> gives cost rollup, quantity summary, and warnings.
         </p>
         <p>
-          Run <code>bom --check</code> before ordering to refresh from the live catalog.
+          Run <code>list --check</code> before ordering to refresh from the live catalog.
           Export as CSV, JSON, or markdown for downstream tooling.
         </p>
         <p style="margin-top:1.25rem">
@@ -217,9 +217,9 @@ openrouter_api_key: sk-or-v1-...</pre>
 <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.min.js"></script>
 <script>
   const SLIDES = [
-    { src: 'recordings/scene-search-core-parts.cast',      dur: 10700, label: 'search the catalog' },
-    { src: 'recordings/scene-inspect-driver.cast',         dur:  9600, label: 'inspect a part'      },
-    { src: 'recordings/scene-compare-switch-options.cast', dur:  9700, label: 'compare options'     },
+    { src: 'presentation/recordings/scene-search-core-parts.cast',      dur: 10700, label: 'search the catalog' },
+    { src: 'presentation/recordings/scene-inspect-driver.cast',         dur:  9600, label: 'inspect a part'      },
+    { src: 'presentation/recordings/scene-compare-switch-options.cast', dur:  9700, label: 'compare options'     },
   ];
   const SPEED = 1.4;
   const PAUSE = 1800; // ms gap between slides
@@ -249,7 +249,7 @@ openrouter_api_key: sk-or-v1-...</pre>
 
   showSlide(0);
 
-  AsciinemaPlayer.create('recordings/scene-review-bom-status.cast', document.getElementById('player-bom'), {
+  AsciinemaPlayer.create('presentation/recordings/scene-review-bom-status.cast', document.getElementById('player-bom'), {
     cols: 100, rows: 18, autoPlay: true, loop: true, speed: 1.2,
     theme: 'monokai', fit: false, terminalFontSize: '11px', poster: 'npt:0:2'
   });

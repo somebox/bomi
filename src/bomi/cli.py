@@ -57,6 +57,7 @@ def _require_project(ctx) -> "Project":
 
 @cli.command()
 @click.argument("keyword")
+@click.option("--category", help="Filter by category (substring match)")
 @click.option("--package", help="Filter by package")
 @click.option("--min-stock", type=int, help="Minimum stock")
 @click.option("--basic-only", is_flag=True, help="Basic parts only")
@@ -66,7 +67,7 @@ def _require_project(ctx) -> "Project":
 @click.option("--limit", type=int, default=25, help="Results per page")
 @click.option("--pages", type=int, default=1, help="Number of pages to fetch")
 @_format_option
-def search(keyword, package, min_stock, basic_only, preferred_only,
+def search(keyword, category, package, min_stock, basic_only, preferred_only,
            max_price, attrs, limit, pages, fmt):
     """Search JLCPCB API for components."""
     try:
@@ -74,6 +75,14 @@ def search(keyword, package, min_stock, basic_only, preferred_only,
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+
+    # Resolve --category to an exact category name via the local cache.
+    # The JLCPCB API only filters on subcategory-level names (those with a
+    # parent).  If the user picks a top-level parent we show its children
+    # so they can refine.
+    component_type = None
+    if category:
+        component_type = _resolve_category(category)
 
     client = JLCPCBClient()
     db = get_db()
@@ -85,6 +94,7 @@ def search(keyword, package, min_stock, basic_only, preferred_only,
                 response = client.search(
                     keyword, page=page, page_size=limit,
                     basic_only=basic_only, preferred_only=preferred_only,
+                    component_type=component_type,
                 )
                 parts = normalize_search_response(response)
                 meta = get_search_metadata(response)
@@ -118,9 +128,14 @@ def search(keyword, package, min_stock, basic_only, preferred_only,
                 active.append(f"--max-price {max_price}")
             if attrs:
                 active.extend(f'--attr "{a}"' for a in attrs)
-            hint = f"Fetched {len(all_parts)} result(s), none passed filters ({', '.join(active)})."
+            hint = f"Fetched {len(all_parts)} result(s), none passed local filters ({', '.join(active)})."
+            hints = []
             if pages == 1:
-                hint += " Try --pages N to fetch more results before filtering."
+                hints.append("--pages N to fetch more before filtering")
+            if attrs:
+                hints.append("a more specific keyword")
+            if hints:
+                hint += " Try " + " or ".join(hints) + "."
             click.echo(hint, err=True)
 
         click.echo(format_parts(filtered, fmt, command="search"))
@@ -211,6 +226,7 @@ def fetch(ctx, lcsc_codes, fetch_all, force, fmt):
 
 @cli.command()
 @click.argument("keyword", required=False, default=None)
+@click.option("--category", help="Filter by category (substring match)")
 @click.option("--package", help="Filter by package")
 @click.option("--min-stock", type=int, help="Minimum stock")
 @click.option("--basic-only", is_flag=True, help="Basic parts only")
@@ -219,15 +235,20 @@ def fetch(ctx, lcsc_codes, fetch_all, force, fmt):
 @_attr_option
 @click.option("--limit", type=int, default=50, help="Max results")
 @_format_option
-def query(keyword, package, min_stock, basic_only, preferred_only,
+def query(keyword, category, package, min_stock, basic_only, preferred_only,
           max_price, attrs, limit, fmt):
     """Query LOCAL database (no API calls)."""
+    # Validate --category against synced categories when available
+    if category:
+        _validate_category(category)
+
     db = get_db()
     try:
         results = search_local(
-            db, keyword=keyword, package=package, min_stock=min_stock,
-            basic_only=basic_only, preferred_only=preferred_only,
-            max_price=max_price, attr_exprs=list(attrs), limit=limit,
+            db, keyword=keyword, category=category, package=package,
+            min_stock=min_stock, basic_only=basic_only,
+            preferred_only=preferred_only, max_price=max_price,
+            attr_exprs=list(attrs), limit=limit,
         )
         click.echo(format_parts(results, fmt, command="query"))
     except ValueError as e:
@@ -584,7 +605,7 @@ def clear():
 
 # ── About ────────────────────────────────────────────────────────────
 
-_LOGO_ASCII = """\
+_LOGO_ASCII = r"""\
                                 [=][___]--.
                                             \
                    ___        ___            |
@@ -617,6 +638,113 @@ def about():
     click.echo()
     click.echo("  Source: https://github.com/somebox/bomi")
     click.echo("  License: MIT")
+
+
+# ── Sync and categories ──────────────────────────────────────────────
+
+
+@cli.command()
+@click.option("--force", is_flag=True, help="Re-fetch even if recently synced")
+def sync(force):
+    """Fetch and cache provider category data."""
+    from .scrape import fetch_jlcpcb_categories
+
+    db = get_db()
+    try:
+        if not force:
+            last = db.get_sync_time("jlcpcb")
+            if last is not None:
+                from datetime import datetime, timezone
+
+                age_hours = (
+                    datetime.now(timezone.utc) - last
+                ).total_seconds() / 3600
+                if age_hours < 24:
+                    click.echo(
+                        f"Categories already synced {age_hours:.0f}h ago. "
+                        "Use --force to refresh.",
+                        err=True,
+                    )
+                    return
+
+        click.echo("Fetching JLCPCB categories...", err=True)
+        try:
+            cats = fetch_jlcpcb_categories()
+        except requests.RequestException as e:
+            click.echo(f"Error: Failed to fetch categories: {e}", err=True)
+            sys.exit(1)
+
+        db.upsert_categories(cats, provider="jlcpcb")
+        top = sum(1 for c in cats if c["parent"] is None)
+        sub = len(cats) - top
+        click.echo(f"Synced {top} categories, {sub} subcategories.")
+    finally:
+        db.close()
+
+
+@cli.command()
+@click.argument("query", required=False, default=None)
+def categories(query):
+    """List cached categories. Optionally filter by name."""
+    db = get_db()
+    try:
+        cats = db.get_categories()
+        if not cats:
+            click.echo(
+                "No categories cached. Run 'bomi sync' first.", err=True
+            )
+            sys.exit(1)
+
+        # Build hierarchy: parent -> children
+        top_level = []
+        children_by_parent: dict[str, list] = {}
+        for c in cats:
+            if c["parent"] is None:
+                top_level.append(c)
+            else:
+                children_by_parent.setdefault(c["parent"], []).append(c)
+
+        # Filter if query provided
+        if query:
+            query_lower = query.lower()
+            filtered_parents = set()
+            filtered_children: dict[str, list] = {}
+
+            for c in cats:
+                if query_lower in c["name"].lower():
+                    if c["parent"] is None:
+                        filtered_parents.add(c["name"])
+                    else:
+                        filtered_parents.add(c["parent"])
+                        filtered_children.setdefault(
+                            c["parent"], []
+                        ).append(c)
+
+            # Show matching parents with their matching children
+            for parent in top_level:
+                if parent["name"] not in filtered_parents:
+                    continue
+                count = f" ({parent['part_count']:,})" if parent["part_count"] else ""
+                click.echo(f"{parent['name']}{count}")
+                kids = filtered_children.get(
+                    parent["name"],
+                    # If parent matched directly, show all children
+                    children_by_parent.get(parent["name"], [])
+                    if query_lower in parent["name"].lower()
+                    else [],
+                )
+                for child in kids:
+                    cc = f" ({child['part_count']:,})" if child["part_count"] else ""
+                    click.echo(f"  {child['name']}{cc}")
+        else:
+            for parent in top_level:
+                count = f" ({parent['part_count']:,})" if parent["part_count"] else ""
+                click.echo(f"{parent['name']}{count}")
+                for child in children_by_parent.get(parent["name"], []):
+                    cc = f" ({child['part_count']:,})" if child["part_count"] else ""
+                    click.echo(f"  {child['name']}{cc}")
+    finally:
+        db.close()
 
 
 # ── New project commands ─────────────────────────────────────────────
@@ -1051,12 +1179,131 @@ def _format_bom_markdown(project, bom_entries: list[dict]) -> str:
 # ── Helpers ──────────────────────────────────────────────────────────
 
 
+def _validate_category(category: str):
+    """Validate a category string against synced categories.
+
+    Used by ``query`` to give helpful errors instead of silent empty results.
+    Unlike ``_resolve_category`` (used by ``search``), this does not resolve
+    to an exact name — ``query`` uses substring matching against the parts
+    table directly. This only checks that the input is plausible.
+    """
+    db = get_db()
+    try:
+        cats = db.get_categories()
+        if not cats:
+            # No synced categories — skip validation, let query run
+            return
+
+        matches = db.match_category(category)
+        if not matches:
+            click.echo(
+                f"No category matching '{category}'. "
+                "Run 'bomi categories' to see available categories.",
+                err=True,
+            )
+            sys.exit(1)
+
+        # Warn if there's an exact match to a top-level parent
+        exact = [m for m in matches if m.lower() == category.lower()]
+        resolved = exact[0] if len(exact) == 1 else (matches[0] if len(matches) == 1 else None)
+        if resolved:
+            children = db.get_categories(parent=resolved)
+            if children:
+                click.echo(
+                    f"Note: '{resolved}' is a top-level category. "
+                    "Use a subcategory for more specific results. "
+                    "Run 'bomi categories' to browse.",
+                    err=True,
+                )
+    finally:
+        db.close()
+
+
+def _resolve_category(category: str) -> str:
+    """Resolve a category substring to an exact API-compatible category name.
+
+    The JLCPCB API only filters on subcategory-level names (those with a
+    parent).  If the user picks a top-level parent we show its children
+    so they can refine.  Exits on error.
+    """
+    db = get_db()
+    try:
+        matches = db.match_category(category)
+
+        if not matches:
+            has_any = bool(db.get_categories())
+            if not has_any:
+                click.echo(
+                    "No categories cached. Run 'bomi sync' first.",
+                    err=True,
+                )
+            else:
+                click.echo(
+                    f"No category matching '{category}'. "
+                    "Run 'bomi categories' to see available categories.",
+                    err=True,
+                )
+            sys.exit(1)
+
+        # If a single match, use it — but check if it's a parent
+        resolved = None
+        if len(matches) == 1:
+            resolved = matches[0]
+        else:
+            exact = [m for m in matches if m.lower() == category.lower()]
+            if len(exact) == 1:
+                resolved = exact[0]
+
+        if resolved:
+            # Check if this is a top-level parent (not usable as API filter)
+            children = db.get_categories(parent=resolved)
+            if children:
+                click.echo(
+                    f"'{resolved}' is a top-level category. "
+                    "Pick a subcategory:",
+                    err=True,
+                )
+                for child in children:
+                    cc = (
+                        f" ({child['part_count']:,})"
+                        if child["part_count"]
+                        else ""
+                    )
+                    click.echo(f"  {child['name']}{cc}", err=True)
+                sys.exit(1)
+            return resolved
+
+        # Multiple matches, none exact — filter out parent-level entries
+        all_cats_map = {c["name"]: c for c in db.get_categories()}
+        subcats = [
+            m
+            for m in matches
+            if all_cats_map.get(m, {}).get("parent") is not None
+        ]
+
+        if len(subcats) == 1:
+            return subcats[0]
+
+        display = subcats if subcats else matches
+        click.echo(
+            f"'{category}' matches multiple categories:", err=True
+        )
+        for m in display:
+            click.echo(f"  {m}", err=True)
+        click.echo(
+            "\nBe more specific or use the exact name.", err=True
+        )
+        sys.exit(1)
+    finally:
+        db.close()
+
+
 def _apply_local_filters(
     parts: list,
     package: str | None = None,
     min_stock: int | None = None,
     max_price: float | None = None,
-    attr_filters: list[tuple[str, str, float]] | None = None,
+    attr_filters: list[tuple[str, str, float | str]] | None = None,
 ) -> list:
     """Apply local filters to a list of Part objects after API fetch."""
     result = parts
@@ -1080,7 +1327,15 @@ def _apply_local_filters(
                 attr = next(
                     (a for a in p.attributes if a.name == attr_name), None
                 )
-                if attr and attr.value_num is not None:
+                if attr is None:
+                    continue
+                if isinstance(threshold, str):
+                    # String comparison against raw value
+                    if op == "=" and attr.value_raw == threshold:
+                        filtered.append(p)
+                    elif op == "!=" and attr.value_raw != threshold:
+                        filtered.append(p)
+                elif attr.value_num is not None:
                     if _compare(attr.value_num, op, threshold):
                         filtered.append(p)
             result = filtered

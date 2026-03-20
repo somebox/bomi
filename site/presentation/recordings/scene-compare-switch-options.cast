@@ -1,4 +1,4 @@
-{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773875682, "title": "Compare Switch Options", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
+{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773967582, "title": "Compare Switch Options", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
 [0.35, "m", "scene-compare-switch-options"]
 [0.0, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.019, "o", "b"]
@@ -22,7 +22,7 @@
 [0.019, "o", "\r\n"]
 [0.38, "o", "LCSC     MFR Part     Manufacturer     Package        Stock  Price    Type\r\r\n"]
 [0.03, "o", "-------  -----------  ---------------  -----------  -------  -------  ------\r\r\n"]
-[0.03, "o", "C145837  K3-2380S-E1  Korean Hroparts  SMD,7.2x4mm      735  $0.2313  Ext\r\r\n"]
+[0.03, "o", "C145837  K3-2380S-E1  Korean Hroparts  SMD,7.2x4mm      735  $0.2312  Ext\r\r\n"]
 [0.0, "o", "\r\n"]
 [0.6, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.031, "o", "b"]
@@ -62,7 +62,7 @@
 [0.03, "o", "Manufacturer           SHOU HAN                  Korean Hroparts Elec\r\r\n"]
 [0.03, "o", "Package                SMD                       SMD,7.2x4mm\r\r\n"]
 [0.03, "o", "Stock                  4433                      735\r\r\n"]
-[0.03, "o", "Price (qty 1)          $0.0558                   $0.2313\r\r\n"]
+[0.03, "o", "Price (qty 1)          $0.0558                   $0.2312\r\r\n"]
 [0.03, "o", "Type                   expand                    expand\r\r\n"]
 [0.03, "o", "Actuator Style         -                         Rectangular Columnar\r\r\n"]
 [0.03, "o", "Actuator/Cap Color     Yellow                    -\r\r\n"]

@@ -194,7 +194,7 @@ git init</pre>
           </div>
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Swap L1 to C167888 — same footprint, much better stock
-            <code class="prompt-cmd">bomi deselect --ref L1
+            <code class="prompt-cmd">bomi deselect L1
 bomi select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k stock"</code>
           </div>
         </div>
@@ -204,11 +204,11 @@ bomi select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k s
         <div class="prompt-list">
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Check all BOM stock levels, flag anything risky
-            <code class="prompt-cmd">bomi bom --check</code>
+            <code class="prompt-cmd">bomi list --check</code>
           </div>
           <div class="prompt-item" onclick="this.classList.toggle('open')">
             Export the BOM as CSV for the order sheet
-            <code class="prompt-cmd">bomi bom --fmt csv</code>
+            <code class="prompt-cmd">bomi list --format csv</code>
           </div>
         </div>
       </div>
@@ -235,7 +235,7 @@ bomi select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k s
     </div>
     <div class="card">
       <h3>Check stock before every order</h3>
-      <p>Prices and availability change daily on JLCPCB. Run <code>bom --check</code> before finalising any production run to catch anything that's gone out of stock or changed in price since you last looked.</p>
+      <p>Prices and availability change daily on JLCPCB. Run <code>list --check</code> before finalising any production run to catch anything that's gone out of stock or changed in price since you last looked.</p>
     </div>
     <div class="card">
       <h3>Commit the BOM after each session</h3>
@@ -263,7 +263,7 @@ bomi select C167888 --ref L1 --notes "FNR4030S470MT, same 4030 footprint, 147k s
 
 <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.10.0/dist/bundle/asciinema-player.min.js"></script>
 <script>
-  AsciinemaPlayer.create('recordings/scene-agent-bom-review.cast', document.getElementById('player-agent-demo'), {
+  AsciinemaPlayer.create('presentation/recordings/scene-agent-bom-review.cast', document.getElementById('player-agent-demo'), {
     cols: 90, rows: 28,
     autoPlay: true, loop: true, speed: 1.0,
     theme: 'monokai', fit: false,

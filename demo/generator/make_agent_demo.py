@@ -2,7 +2,7 @@
 """Generate a scripted agent-chat demo cast file.
 
 Simulates an AI agent session running bomi tool calls for a BOM stock review.
-Output: site/recordings/scene-agent-bom-review.cast
+Default output: site/presentation/recordings/scene-agent-bom-review.cast
 
 All timing is in whole milliseconds. Asciinema v3 uses *relative* timestamps
 (delta from the previous event), not absolute offsets from the start.
@@ -10,6 +10,7 @@ All timing is in whole milliseconds. Asciinema v3 uses *relative* timestamps
 
 from __future__ import annotations
 
+import argparse
 import json
 import random
 from pathlib import Path
@@ -141,9 +142,9 @@ def build() -> Stream:
     s.wait(350)
     s.out(f"\r\n{BULLET} Let me check the rgb-spotlight BOM and stock levels.\r\n")
 
-    # ── Tool: bom rgb-spotlight ───────────────────────────────────────────────
+    # ── Tool: list (rgb-spotlight) ────────────────────────────────────────────
     s.wait(400)
-    s.tool("Bash", "bomi bom --project rgb-spotlight --check")
+    s.tool("Bash", "bomi --project ~/pcb/rgb-spotlight list --check")
     s.wait(650)
     s.output_block([
         f"  Ref   LCSC         Qty  Part                          Stock    Price",
@@ -155,9 +156,9 @@ def build() -> Stream:
         f"  {DIM}… +9 lines (ctrl+o to expand){RST}",
     ])
 
-    # ── Tool: bom esphome-dimmer ──────────────────────────────────────────────
+    # ── Tool: list (esphome-dimmer) ───────────────────────────────────────────
     s.wait(300)
-    s.tool("Bash", "bomi bom --project esphome-dimmer-switch --check")
+    s.tool("Bash", "bomi --project ~/pcb/esphome-dimmer list --check")
     s.wait(650)
     s.output_block([
         f"  Ref    LCSC         Qty  Part                          Stock    Price",
@@ -167,9 +168,9 @@ def build() -> Stream:
         f"  {DIM}… +14 lines (ctrl+o to expand){RST}",
     ])
 
-    # ── Tool: bom usb-led-flashlight ──────────────────────────────────────────
+    # ── Tool: list (usb-led-flashlight) ───────────────────────────────────────
     s.wait(300)
-    s.tool("Bash", "bomi bom --project usb-led-flashlight --check")
+    s.tool("Bash", "bomi --project ~/pcb/usb-led-flashlight list --check")
     s.wait(650)
     s.output_block([
         f"  Ref      LCSC        Qty  Part                      Stock    Price",
@@ -260,13 +261,27 @@ def _avg_ms_per_char(events: list) -> float:
     return sum(e[0] for e in typed) / len(typed) * 1000 if typed else 0
 
 
-if __name__ == "__main__":
-    out_path = (
-        Path(__file__).resolve().parents[2] / "site" / "recordings" / "scene-agent-bom-review.cast"
+def main() -> int:
+    repo_root = Path(__file__).resolve().parents[2]
+    default_out = repo_root / "site" / "presentation" / "recordings" / "scene-agent-bom-review.cast"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=default_out,
+        help="Path for generated .cast file",
     )
+    args = parser.parse_args()
+    out_path = args.output.expanduser().resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     stream = build()
     out_path.write_text(stream.dumps(), encoding="utf-8")
     total_s = sum(e[0] for e in stream.events)
     print(f"wrote {out_path}  ({len(stream.events)} events)")
     print(f"avg typing: {_avg_ms_per_char(stream.events):.0f}ms/char")
     print(f"total duration: {total_s:.1f}s")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

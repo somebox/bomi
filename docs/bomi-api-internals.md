@@ -45,6 +45,7 @@ Supported request fields in the current client:
 | `pageSize` | results per page |
 | `componentLibraryType` | `"base"` when `basic_only=True` |
 | `preferredComponentFlag` | `true` when `preferred_only=True` |
+| `componentType` | subcategory name for server-side category filtering (e.g. `"Chip Resistor - Surface Mount"`) |
 
 ### Response fields used by the tool
 
@@ -108,6 +109,18 @@ export BOMI_OPENROUTER_API_KEY=sk-or-v1-...
 ### Large PDF handling
 
 Large PDFs are split into chunks before upload. Each chunk is analyzed separately, then a synthesis request combines the chunk summaries into one markdown response.
+
+## JLCPCB Category Page
+
+The `sync` command scrapes the category tree from:
+
+```text
+GET https://jlcpcb.com/parts/all-electronic-components
+```
+
+The page is a Nuxt.js app that embeds an `allPartsList` array in an IIFE. Each top-level entry has `sortName`, `componentCount`, and a `childSortList` array of subcategories with `componentSortKeyId` fields. The scraper (`src/bomi/scrape.py`) parses this structure with regex and stores the results in the `categories` and `sync_meta` tables.
+
+Category names from this page correspond to the `componentType` API filter and the `firstSortName` / `componentTypeEn` fields in search results. Top-level parent names (e.g. "Capacitors") are not valid `componentType` values — only subcategory-level names work for API filtering.
 
 ## Implementation Boundaries
 

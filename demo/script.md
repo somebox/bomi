@@ -163,13 +163,13 @@ Narration:
 Commands:
 
 ```bash
-bomi bom
+bomi list
 bomi status
 ```
 
 Narration:
 
-"`bom` gives a detailed table and `status` gives an overview with warnings and rough cost."
+"`list` gives a detailed table and `status` gives an overview with warnings and rough cost."
 
 ## Chapter 6 - Refine and Validate
 
@@ -192,14 +192,14 @@ Narration:
 Commands:
 
 ```bash
-bomi bom --check
-bomi bom --format csv
-bomi bom --format json
+bomi list --check
+bomi list --format csv
+bomi list --format json
 ```
 
 Narration:
 
-"`bom --check` refreshes stock and pricing. CSV and JSON exports support downstream review and automation."
+"`list --check` refreshes stock and pricing. CSV and JSON exports support downstream review and automation."
 
 ### Scene 6.3 - Download Datasheet Artifacts
 

@@ -24,6 +24,7 @@ def parse_attr_filters(
 def search_local(
     db: Database,
     keyword: str | None = None,
+    category: str | None = None,
     package: str | None = None,
     min_stock: int | None = None,
     basic_only: bool = False,
@@ -40,6 +41,7 @@ def search_local(
 
     return db.query_parts(
         keyword=keyword,
+        category=category,
         package=package,
         min_stock=min_stock,
         basic_only=basic_only,

@@ -157,3 +157,20 @@ class TestParseFilterExpr:
         assert name == "Forward Current"
         assert op == ">="
         assert val == pytest.approx(0.1)
+
+    def test_string_equality(self):
+        result = parse_filter_expr("Circuit = SP3T")
+        assert result == ("Circuit", "=", "SP3T")
+
+    def test_string_inequality(self):
+        result = parse_filter_expr("Circuit != SPDT")
+        assert result == ("Circuit", "!=", "SPDT")
+
+    def test_string_with_spaces_and_commas(self):
+        result = parse_filter_expr("Mounting Type = Surface Mount, Right Angle")
+        assert result == ("Mounting Type", "=", "Surface Mount, Right Angle")
+
+    def test_string_gte_invalid(self):
+        """String values with ordering operators are not valid."""
+        result = parse_filter_expr("Circuit >= SP3T")
+        assert result is None

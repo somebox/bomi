@@ -1,4 +1,4 @@
-{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773875701, "title": "Artifacts and Git State", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
+{"version": 3, "term": {"cols": 75, "rows": 28, "type": "xterm-256color"}, "timestamp": 1773967599, "title": "Artifacts and Git State", "command": "/bin/zsh", "env": {"SHELL": "/bin/zsh"}}
 [0.35, "m", "scene-artifacts-and-git"]
 [0.0, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]
 [0.023, "o", "m"]
@@ -94,7 +94,9 @@
 [0.042, "o", "t"]
 [0.04, "o", "s"]
 [0.034, "o", "\r\n"]
-[0.38, "o", "Downloading C347356 (PT4115)... 250KB\r\r\n"]
+[0.38, "o", "[1/2] C347356\r\r\n"]
+[0.03, "o", "Downloading C347356 (PT4115)... 250KB\r\r\n"]
+[0.03, "o", "[2/2] C456012\r\r\n"]
 [0.03, "o", "Downloading C456012 (TYPE-C 6P)... 1020KB\r\r\n"]
 [0.0, "o", "\r\n"]
 [0.8, "o", "\u001b[1;34musb-led-flashlight\u001b[0m \u001b[1;32m$\u001b[0m "]

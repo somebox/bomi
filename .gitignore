@@ -11,6 +11,9 @@ build/
 *.sqlite3
 .DS_Store
 
+# Ephemeral demo recording workspace (first scene in scenes.yaml recreates it)
+demo/presentation/demo-project/usb-led-flashlight/
+
 # Downloaded datasheets (local artifacts, not source files)
 tests/fixtures/datasheets/*.pdf
 artifacts/datasheets/

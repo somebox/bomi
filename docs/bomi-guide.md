@@ -6,7 +6,8 @@ Use `bomi` for JLCPCB/LCSC part research and project BOM updates. Prefer it over
 
 ## Quick Rules
 
-- `search` is live and also updates the local cache.
+- `sync` fetches the JLCPCB category tree and caches it locally (skips if <24h old).
+- `search` is live and also updates the local cache. Use `--category` to filter by category (requires `sync` first).
 - `query` is local-cache only — fast and offline.
 - `info`, `compare`, `analyze`, and `datasheet` need the part in the local cache first — run `fetch` if needed.
 - `select` fetches the part automatically if it is not already cached.
@@ -18,10 +19,15 @@ Use `bomi` for JLCPCB/LCSC part research and project BOM updates. Prefer it over
 
 | Command | Purpose |
 |---------|---------|
+| `bomi sync` | Fetch and cache JLCPCB category tree |
+| `bomi categories` | List cached categories |
+| `bomi categories "filter"` | Filter categories by name |
 | `bomi search "keyword"` | Search the live JLCPCB catalog |
+| `bomi search "keyword" --category "name"` | Search within a specific category |
 | `bomi fetch CXXXXX` | Cache a specific part by LCSC code |
 | `bomi fetch --all` | Cache all selected LCSC parts from the active project BOM |
 | `bomi query "keyword"` | Search the local cache only |
+| `bomi query --category "name"` | Filter local cache by category |
 | `bomi info R1` | Show full details for the part selected at a designator |
 | `bomi info CXXXXX` | Show full details for one cached part by LCSC code |
 | `bomi compare CXXXXX CYYYYY` | Compare cached parts side-by-side |
@@ -40,6 +46,14 @@ Use `bomi` for JLCPCB/LCSC part research and project BOM updates. Prefer it over
 
 ## Common Flows
 
+### Sync categories and search
+
+```bash
+bomi sync
+bomi categories mosfet
+bomi search "N-Channel" --category "MOSFETs"
+```
+
 ### Search and inspect
 
 ```bash
@@ -55,11 +69,13 @@ bomi compare C9865 C28023
 ```bash
 bomi search "0402 resistor" --attr "Resistance >= 10k"
 bomi search "MOSFET SOT-23" --attr "Drain Source Voltage (Vdss) >= 30"
+bomi query --category "Chip Resistor" --basic-only --attr "Resistance >= 10k"
 bomi query --basic-only --attr "Capacitance <= 100n"
 ```
 
-Attribute operators: `>=` `<=` `>` `<` `=` `!=`.
+Attribute operators: `>=` `<=` `>` `<` `=`.
 Values support SI prefixes: `10k`, `100n`, `4.7u`.
+Non-numeric values use exact string matching with `=`: `"Circuit = SP3T"`.
 Multiple `--attr` flags are ANDed together.
 
 ### Work in a project
@@ -175,6 +191,7 @@ Env vars override config values:
 
 ## Good Defaults
 
+- Run `sync` once before using `--category` on search.
 - Run `fetch` before `info`, `compare`, `analyze`, or `datasheet`.
 - Use `query` when you want fast, offline, reproducible filtering from the local cache.
 - Use `list --check` before ordering to refresh stock and pricing from the live catalog.

@@ -100,7 +100,7 @@ bomi search "LDO 3.3V" --max-price 0.50 --basic-only</pre>
 }</pre>
 
       <h3>BOM as JSON</h3>
-      <pre>bomi bom --format json</pre>
+      <pre>bomi list --format json</pre>
       <pre>{
   "status": "ok",
   "command": "bom",
@@ -113,7 +113,7 @@ bomi search "LDO 3.3V" --max-price 0.50 --basic-only</pre>
     }
   ]
 }</pre>
-      <p>Note: <code>bom</code> uses <code>"data"</code> instead of <code>"results"</code>.</p>
+      <p>Note: <code>list</code> / <code>bom</code> JSON uses <code>"data"</code> instead of <code>"results"</code>.</p>
 
       <h2 id="cache">Local cache queries</h2>
       <pre>bomi query
@@ -309,29 +309,29 @@ bomi select C1525 --ref C2 --qty 1 --notes "Bypass cap"
 bomi select C347356 --ref U2 --qty 1 --notes "LED driver"</pre>
 
       <h3>BOM review</h3>
-      <pre>bomi bom
-bomi bom --check
-bomi bom --format csv
-bomi bom --format markdown
+      <pre>bomi list
+bomi list --check
+bomi list --format csv
+bomi list --format markdown
 bomi status</pre>
       <div class="player-block">
-        <div class="player-label">bom + status — cost rollup and stock summary</div>
+        <div class="player-label">list + status — cost rollup and stock summary</div>
         <div class="ap-wrapper" id="player-bom"></div>
       </div>
 
       <h3>Refine and export</h3>
       <pre>bomi relabel R1 R3
 bomi deselect C2
-bomi bom --check
-bomi bom --format csv
-bomi bom --format json</pre>
+bomi list --check
+bomi list --format csv
+bomi list --format json</pre>
       <div class="player-block">
         <div class="player-label">relabel, validate, and export BOM</div>
         <div class="ap-wrapper" id="player-refine"></div>
       </div>
 
       <h3>Work from outside the project directory</h3>
-      <pre>bomi --project ~/Projects/my-board bom
+      <pre>bomi --project ~/Projects/my-board list
 
 export BOMI_PROJECT=~/Projects/my-board
 bomi status</pre>
@@ -385,12 +385,12 @@ bomi db clear</pre>
 </script>
 <script>
   const opts75 = { cols: 75, autoPlay: false, loop: false, theme: 'monokai', fit: false, terminalFontSize: '11px' };
-  AsciinemaPlayer.create('recordings/scene-search-core-parts.cast',    document.getElementById('player-search'),  opts75);
-  AsciinemaPlayer.create('recordings/scene-inspect-driver.cast',        document.getElementById('player-inspect'), opts75);
-  AsciinemaPlayer.create('recordings/scene-compare-switch-options.cast',document.getElementById('player-compare'), opts75);
-  AsciinemaPlayer.create('recordings/scene-review-bom-status.cast',     document.getElementById('player-bom'),
+  AsciinemaPlayer.create('presentation/recordings/scene-search-core-parts.cast',    document.getElementById('player-search'),  opts75);
+  AsciinemaPlayer.create('presentation/recordings/scene-inspect-driver.cast',        document.getElementById('player-inspect'), opts75);
+  AsciinemaPlayer.create('presentation/recordings/scene-compare-switch-options.cast',document.getElementById('player-compare'), opts75);
+  AsciinemaPlayer.create('presentation/recordings/scene-review-bom-status.cast',     document.getElementById('player-bom'),
     { cols: 100, autoPlay: false, loop: false, theme: 'monokai', fit: false, terminalFontSize: '11px' });
-  AsciinemaPlayer.create('recordings/scene-refine-validate.cast',       document.getElementById('player-refine'), opts75);
+  AsciinemaPlayer.create('presentation/recordings/scene-refine-validate.cast',       document.getElementById('player-refine'), opts75);
 </script>
 </body>
 </html>

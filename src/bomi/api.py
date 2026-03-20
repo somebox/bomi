@@ -55,6 +55,7 @@ class JLCPCBClient:
         page_size: int = 25,
         basic_only: bool = False,
         preferred_only: bool = False,
+        component_type: str | None = None,
     ) -> dict:
         """Search JLCPCB catalog. Returns raw API response dict."""
         self._throttle()
@@ -69,6 +70,8 @@ class JLCPCBClient:
             body["componentLibraryType"] = "base"
         if preferred_only:
             body["preferredComponentFlag"] = True
+        if component_type:
+            body["componentType"] = component_type
 
         resp = self.session.post(JLCPCB_SEARCH_URL, json=body, timeout=30)
         resp.raise_for_status()

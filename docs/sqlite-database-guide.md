@@ -79,6 +79,29 @@ Saved datasheet analysis results.
 | `created_at` | TEXT | ISO timestamp |
 | `cost_usd` | REAL | Estimated OpenRouter cost |
 
+### Table: `categories`
+
+Cached category tree from `bomi sync`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `name` | TEXT | Category name (part of composite PK) |
+| `parent` | TEXT | Parent category name, NULL for top-level |
+| `provider` | TEXT | Provider identifier, default `jlcpcb` (part of composite PK) |
+| `sort_id` | INTEGER | Provider-specific category ID |
+| `part_count` | INTEGER | Approximate number of parts in this category |
+
+Primary key: `(name, provider)`
+
+### Table: `sync_meta`
+
+Tracks when provider data was last synced.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `provider` | TEXT PK | Provider identifier |
+| `synced_at` | TEXT | ISO timestamp of last sync |
+
 ## Indexes
 
 The current schema creates these indexes:
@@ -87,6 +110,7 @@ The current schema creates these indexes:
 - `idx_parts_package` on `parts(package)`
 - `idx_parts_stock` on `parts(stock)`
 - `idx_attr_name_num` on `attributes(attr_name, attr_value_num)`
+- `idx_categories_parent` on `categories(parent)`
 
 ## Example Queries
 
@@ -174,9 +198,28 @@ if row:
     print(f"Stock: {row['stock']}")
 ```
 
+### List synced categories
+
+```sql
+SELECT name, parent, part_count
+FROM categories
+WHERE provider = 'jlcpcb'
+ORDER BY parent, name;
+```
+
+### Find subcategories of a parent
+
+```sql
+SELECT name, part_count
+FROM categories
+WHERE provider = 'jlcpcb' AND parent = 'Resistors'
+ORDER BY name;
+```
+
 ## Notes
 
 - This database is a cache, not a canonical source of truth.
 - `query`, `info`, `compare`, and project BOM enrichment all depend on it.
+- The `categories` and `sync_meta` tables are populated by `bomi sync` and used by `bomi categories` and `bomi search --category`.
 - The CLI currently loads full part objects by joining through `parts`, `prices`, and `attributes` in Python rather than through SQL views.
 - See `docs/review-issues.md` for open design and performance follow-ups around query behavior.

@@ -261,7 +261,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--output-dir",
-        default=str(Path(__file__).parents[1] / "presentation" / "recordings"),
+        default=str(
+            Path(__file__).resolve().parents[2]
+            / "site"
+            / "presentation"
+            / "recordings"
+        ),
         help="Directory for generated .cast files",
     )
     parser.add_argument("--scene", help="Generate only one scene by id")

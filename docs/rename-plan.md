@@ -195,17 +195,7 @@ Files: `site/index.html`, `site/guide.html`, `site/examples.html`, `site/vibe.ht
 **`demo/script.md`** (~35 changes):
 - Title, all CLI examples, `.jlcpcb/` paths, `jlcpcb init` → `bomi init`
 
-**Demo project fixture:**
-
-```bash
-git mv demo/presentation/demo-project/usb-led-flashlight/.jlcpcb \
-       demo/presentation/demo-project/usb-led-flashlight/.bomi
-```
-
-The `project.yaml` inside has no `jlcpcb` strings — no content edit needed.
-
-**`demo/presentation/demo-project/usb-led-flashlight/.gitignore`** (1 change):
-- Comment `jlcpcb datasheet CXXXXX` → `bomi datasheet CXXXXX`
+**Demo workspace:** Terminal scenes recreate `demo/presentation/demo-project/usb-led-flashlight/` when running `build_site.py`; it is not committed. Any one-off renames of `.jlcpcb` → `.bomi` in an external checkout of that sample project are unrelated to this repo.
 
 ---
 
