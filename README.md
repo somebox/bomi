@@ -257,6 +257,7 @@ Then commit the updated `site/presentation/` files. GitHub Pages only publishes 
 ## Documentation
 
 - `docs/bomi-guide.md`: short agent-oriented usage guide (also at [somebox.github.io/bomi/guide.html](https://somebox.github.io/bomi/guide.html))
+- `docs/features.md`: backlog / future-feature ideas (not a roadmap)
 - `docs/examples.md`: command examples
 - `docs/bomi-api-internals.md`: current API notes and implementation boundaries
 - `docs/sqlite-database-guide.md`: local cache schema and query examples

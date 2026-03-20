@@ -1,6 +1,6 @@
 [project]
 name = "bomi"
-version = "1.0.0"
+version = "1.0.1"
 description = "CLI tool for researching JLCPCB/LCSC electronic components"
 license = { text = "MIT" }
 authors = [
