@@ -90,18 +90,38 @@ nav {
 .nav-links a:hover { color: var(--text); }
 .nav-links a.active { color: var(--blue); }
 
-.nav-github {
+.nav-actions {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.nav-button {
   font-family: var(--mono);
   font-size: 0.75rem;
   color: var(--text-dim);
   text-decoration: none;
   border: 1px solid var(--border);
   padding: 0.3rem 0.7rem;
-  transition: border-color 0.1s, color 0.1s;
-  flex-shrink: 0;
+  transition: border-color 0.1s, color 0.1s, background-color 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
 }
 
-.nav-github:hover { border-color: var(--border-hi); color: var(--text); }
+.nav-button:hover {
+  border-color: var(--border-hi);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-button-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
+}
 
 /* ── Layout ───────────────────────────────────────────────────── */
 

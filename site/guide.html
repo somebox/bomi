@@ -45,6 +45,10 @@
         It gives the agent everything it needs to use <code>bomi</code> correctly.
       </p>
 
+      <p>
+        In practice, <code>bomi</code> is used inside a hardware project folder: <code>.bomi/project.yaml</code> stores the project BOM selections, <code>bomi list</code>/<code>status</code> generate BOM views from that file, and <code>bomi datasheet</code> can write PDFs plus markdown summaries into a docs folder such as <code>docs/datasheets/</code>. Part and category data are cached locally, so agents can <code>fetch</code>, <code>search</code>, <code>query</code>, <code>info</code>, and <code>compare</code> parts without repeated browser work. Datasheet analysis and markdown summaries require <code>openrouter_api_key</code> in the global config file (<code>~/Library/Application Support/bomi/config.yaml</code> on macOS, <code>~/.local/share/bomi/config.yaml</code> on Linux).
+      </p>
+
       <div class="callout">
         <strong>For AI agents:</strong> Read this page in full before using <code>bomi</code> commands.
         Pay attention to the caching rules under Quick Rules and the output shape differences under Output Format.

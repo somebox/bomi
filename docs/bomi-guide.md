@@ -4,6 +4,8 @@ Use `bomi` for JLCPCB/LCSC part research and project BOM updates. Prefer it over
 
 > This guide is also available at [somebox.github.io/bomi/guide.html](https://somebox.github.io/bomi/guide.html).
 
+In practice, `bomi` is used inside a hardware project folder: `.bomi/project.yaml` stores the project BOM selections, `bomi list`/`status` generate BOM views from that file, and `bomi datasheet` can write PDFs plus markdown summaries into a docs folder such as `docs/datasheets/`. Part and category data are cached locally, so agents can `fetch`, `search`, `query`, `info`, and `compare` parts without repeated browser work. Datasheet analysis and markdown summaries require `openrouter_api_key` in the global config file (`~/Library/Application Support/bomi/config.yaml` on macOS, `~/.local/share/bomi/config.yaml` on Linux).
+
 ## Quick Rules
 
 - `sync` fetches the JLCPCB category tree and caches it locally (skips if <24h old).
