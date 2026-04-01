@@ -16,7 +16,7 @@ This file documents the HTTP surfaces and external services used by the current 
 
 This is the main live catalog endpoint used by `search`, and it is also the lookup path behind `fetch`, `select`, and `bom --check`.
 
-### OpenRouter endpoint
+### Endpoint
 
 ```text
 POST https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList
@@ -126,11 +126,21 @@ Category names from this page correspond to the `componentType` API filter and t
 
 | Module | Role |
 |--------|------|
-| `cli.py` | Click entrypoint; orchestrates commands. |
-| `categories.py` | `query` category validation vs synced tree; `search` substring resolution to an exact API subcategory name. |
-| `filters.py` | Shared logic for package/stock/max-price/`--attr` between post-API filtering (`apply_post_fetch_filters`) and `Database.query_parts` (via `append_attr_filter_sql`). The module docstring lists intentional differences: API-only `basic`/`preferred` for live search, and different `--category` semantics (`search` vs `query`). |
-| `output.py` | Part formatters; BOM JSON/CSV/markdown/table for `list` / `bom`. |
+| `cli.py` | Click entrypoint; orchestrates all commands. |
+| `api.py` | `JLCPCBClient` — HTTP requests to the JLCPCB search API. |
+| `normalize.py` | Converts raw API response objects into `Part` model instances. |
+| `models.py` | Dataclasses: `Part`, `PriceBreak`, `Attribute`, `Selection`. |
 | `db.py` | SQLite access; `Database` implements `__enter__` / `__exit__` for `with Database(path) as db`. |
+| `search.py` | Search orchestration: calls API client, normalizes, applies filters, stores results. |
+| `categories.py` | Category validation for `query`; substring resolution to exact API subcategory name for `search`. |
+| `filters.py` | Shared logic for package/stock/max-price/`--attr` between post-API filtering (`apply_post_fetch_filters`) and `Database.query_parts` (via `append_attr_filter_sql`). |
+| `scrape.py` | Scrapes the JLCPCB category tree page and populates the `categories` and `sync_meta` tables. |
+| `analysis.py` | Datasheet analysis via OpenRouter: PDF upload, chunking, synthesis. |
+| `output.py` | Part formatters; BOM JSON/CSV/markdown/table for `list` / `bom`. |
+| `project.py` | Load, save, and mutate `.bomi/project.yaml` (selections, relabeling). |
+| `refs.py` | Reference designator parsing and expansion (e.g. `R1-R4` → individual refs). |
+| `config.py` | Config loading from `config.yaml` and env var overrides; OS data directory resolution. |
+| `units.py` | SI prefix parsing and numeric value normalization for attribute filtering. |
 
 ## Implementation Boundaries
 
@@ -146,4 +156,4 @@ The current implementation does not do these things:
 - The search API is the only live catalog source the CLI depends on today.
 - The local cache is the source of truth for `query`, `info`, `compare`, and project BOM enrichment.
 - Datasheet analysis depends on both a cached part entry and a working datasheet URL.
-- Network failures are not handled consistently yet; see `docs/review-issues.md` for follow-up work.
+- Network failures are not handled consistently yet.
