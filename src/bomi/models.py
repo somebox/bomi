@@ -47,6 +47,5 @@ class Analysis:
     model: str = ""
     prompt: str = ""
     response: str = ""
-    extracted_json: str | None = None
     created_at: datetime | None = None
     cost_usd: float | None = None

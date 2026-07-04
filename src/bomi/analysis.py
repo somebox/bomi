@@ -14,9 +14,11 @@ import base64
 import json
 import math
 import re
+import sys
 
 import requests
 
+from .api import fetch_openrouter_model_pricing
 from .config import get_config, get_secret
 from .db import Database
 from .models import Analysis, Part
@@ -24,6 +26,12 @@ from .models import Analysis, Part
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 DEFAULT_MODEL = "anthropic/claude-sonnet-4.6"
+
+# How long the local cache of OpenRouter's /models pricing table is trusted
+# before we try to refresh it. Pricing changes infrequently but models come
+# and go, so this is intentionally the same order of magnitude as the parts
+# cache TTL rather than something long-lived.
+PRICING_CACHE_TTL_HOURS = 24
 
 # Max PDF size (bytes) before splitting. ~1.5MB is safe for most models.
 MAX_PDF_CHUNK_BYTES = 1_500_000
@@ -160,6 +168,9 @@ def _send_to_openrouter(
             ],
         }],
         "plugins": [{"id": "file-parser", "pdf": {"engine": pdf_engine}}],
+        # Ask OpenRouter to report the actual billed cost in the response's
+        # `usage` block, so we don't have to estimate it ourselves.
+        "usage": {"include": True},
     }
 
     resp = requests.post(
@@ -182,6 +193,7 @@ def analyze_pdf(
     pdf_data: bytes,
     filename: str,
     pdf_engine: str = "mistral-ocr",
+    db: Database | None = None,
 ) -> dict:
     """Analyze a PDF, splitting into chunks if needed.
 
@@ -189,17 +201,35 @@ def analyze_pdf(
     For multi-chunk PDFs, analyzes each chunk separately then sends a
     final synthesis request to combine the results.
 
-    Returns dict with 'response', 'cost_usd', 'model', 'chunks'.
+    ``db``, if provided, is used to cache/read OpenRouter's live model
+    pricing table as a fallback cost source (see ``_cost_from_usage``).
+
+    Returns dict with 'response', 'cost_usd', 'model', 'chunks', and
+    'cost_source' ('reported', 'pricing_lookup', 'config_override', or
+    'unknown').
     """
     chunks = split_pdf(pdf_data)
     total_cost = 0.0
+    cost_known = True
+    cost_source = "reported"
+
+    def _accumulate(usage: dict) -> None:
+        nonlocal total_cost, cost_known, cost_source
+        cost, source = _cost_from_usage(usage, model, db)
+        cost_source = source if cost_source == "reported" else cost_source
+        if cost is None:
+            cost_known = False
+        else:
+            total_cost += cost
 
     if len(chunks) == 1:
         data = _send_to_openrouter(api_key, model, prompt, chunks[0], filename, pdf_engine)
         usage = data.get("usage", {})
+        cost, source = _cost_from_usage(usage, model, db)
         return {
             "response": data["choices"][0]["message"]["content"],
-            "cost_usd": _estimate_cost(usage),
+            "cost_usd": cost,
+            "cost_source": source,
             "model": model,
             "chunks": 1,
         }
@@ -218,7 +248,7 @@ def analyze_pdf(
             f"{filename}_part{i + 1}.pdf", pdf_engine,
         )
         usage = data.get("usage", {})
-        total_cost += _estimate_cost(usage)
+        _accumulate(usage)
         chunk_summaries.append(data["choices"][0]["message"]["content"])
 
     # Synthesis pass — combine chunk results (text-only, no PDF)
@@ -244,17 +274,19 @@ def analyze_pdf(
         json={
             "model": model,
             "messages": [{"role": "user", "content": synthesis_prompt}],
+            "usage": {"include": True},
         },
         timeout=300,
     )
     synth_resp.raise_for_status()
     synth_data = synth_resp.json()
     synth_usage = synth_data.get("usage", {})
-    total_cost += _estimate_cost(synth_usage)
+    _accumulate(synth_usage)
 
     return {
         "response": synth_data["choices"][0]["message"]["content"],
-        "cost_usd": total_cost,
+        "cost_usd": total_cost if cost_known else None,
+        "cost_source": cost_source if cost_known else "unknown",
         "model": model,
         "chunks": len(chunks),
     }
@@ -313,7 +345,7 @@ def analyze_part(
     filename = f"{part.mfr_part}_datasheet.pdf".replace("/", "_").replace(" ", "_")
 
     # Step 3: Analyze (with chunking if needed)
-    result = analyze_pdf(api_key, model, full_prompt, pdf_data, filename, pdf_engine)
+    result = analyze_pdf(api_key, model, full_prompt, pdf_data, filename, pdf_engine, db=db)
 
     # Step 4: Cache in database
     analysis = Analysis(
@@ -322,7 +354,7 @@ def analyze_part(
         model=model,
         prompt=prompt,
         response=result["response"],
-        cost_usd=result.get("cost_usd", 0),
+        cost_usd=result.get("cost_usd"),
     )
     analysis.id = db.save_analysis(analysis)
 
@@ -331,8 +363,100 @@ def analyze_part(
     return result
 
 
-def _estimate_cost(usage: dict) -> float:
-    """Estimate cost from token usage. Rough approximation."""
+def _cost_from_usage(
+    usage: dict, model: str, db: Database | None
+) -> tuple[float | None, str]:
+    """Determine the USD cost of a single OpenRouter call.
+
+    Tries, in order:
+      1. The actual billed cost reported by OpenRouter itself (requires
+         ``usage: {include: true}`` on the request, which we always send).
+      2. A live per-model rate from OpenRouter's ``/models`` endpoint,
+         cached in the local database and refreshed when stale.
+      3. A manual override rate from ``cost_overrides`` in config.yaml,
+         for models missing from ``/models`` or when offline.
+
+    Returns ``(cost_usd, source)`` where ``source`` is one of ``"reported"``,
+    ``"pricing_lookup"``, ``"config_override"``, or ``"unknown"`` (cost_usd
+    is None in the last case — an honest "we don't know" beats a guess).
+    """
+    # 1. Actual billed cost from the API response.
+    reported = usage.get("cost")
+    if reported is not None:
+        try:
+            return float(reported), "reported"
+        except (TypeError, ValueError):
+            pass
+
     prompt_tokens = usage.get("prompt_tokens", 0)
     completion_tokens = usage.get("completion_tokens", 0)
-    return (prompt_tokens * 0.075 + completion_tokens * 0.30) / 1_000_000
+
+    # 2. Live model pricing, cached in the database.
+    rates = _get_model_rates(model, db)
+    if rates is not None:
+        prompt_rate, completion_rate = rates
+        cost = prompt_tokens * prompt_rate + completion_tokens * completion_rate
+        return cost, "pricing_lookup"
+
+    # 3. Manual override from config.yaml, e.g.:
+    #   cost_overrides:
+    #     anthropic/claude-sonnet-4.6: {prompt_per_1m: 3.0, completion_per_1m: 15.0}
+    overrides = get_config("cost_overrides", {}) or {}
+    override = overrides.get(model)
+    if override:
+        try:
+            prompt_rate = float(override.get("prompt_per_1m", 0)) / 1_000_000
+            completion_rate = float(override.get("completion_per_1m", 0)) / 1_000_000
+        except (TypeError, ValueError):
+            pass
+        else:
+            cost = prompt_tokens * prompt_rate + completion_tokens * completion_rate
+            return cost, "config_override"
+
+    print(
+        f"Warning: could not determine cost for model '{model}' "
+        "(no reported cost, no cached pricing, no config override). "
+        "Cost will show as unknown.",
+        file=sys.stderr,
+    )
+    return None, "unknown"
+
+
+def _get_model_rates(model: str, db: Database | None) -> tuple[float, float] | None:
+    """Return ``(prompt_price, completion_price)`` per-token for ``model``,
+    refreshing the local OpenRouter pricing cache if it's stale or missing
+    the model. Returns None if no db is available or the lookup fails.
+    """
+    if db is None:
+        return None
+
+    rates = db.get_model_price(model)
+    age = db.get_model_pricing_age_hours()
+    stale = age is None or age >= PRICING_CACHE_TTL_HOURS
+
+    if rates is not None and not stale:
+        return rates
+
+    # Cache is missing, doesn't have this model, or is stale — try a refresh.
+    try:
+        pricing = fetch_openrouter_model_pricing()
+    except requests.RequestException as e:
+        if stale and rates is None:
+            print(
+                f"Warning: could not refresh OpenRouter model pricing ({e}); "
+                "proceeding without a pricing cache.",
+                file=sys.stderr,
+            )
+        elif stale:
+            print(
+                f"Warning: OpenRouter model pricing cache is stale "
+                f"({age:.0f}h old) and refresh failed ({e}); using stale rates.",
+                file=sys.stderr,
+            )
+        return rates  # possibly stale, possibly None
+
+    db.save_model_pricing(pricing)
+    model_prices = pricing.get(model)
+    if model_prices is None:
+        return None
+    return model_prices["prompt"], model_prices["completion"]

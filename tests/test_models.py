@@ -56,24 +56,10 @@ def get_api_key():
     sys.exit(1)
 
 
-def download_pdf(url: str) -> bytes | None:
-    """Download a PDF, trying multiple URL forms."""
-    import re
-    urls = [url]
-    m = re.search(r"lcsc\.com/datasheet/.*?(C\d+)\.pdf", url)
-    if m:
-        urls.append(f"https://wmsc.lcsc.com/wmsc/upload/file/pdf/v2/{m.group(1)}.pdf")
-
-    for u in urls:
-        try:
-            resp = requests.get(u, timeout=60, allow_redirects=True, headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-            })
-            if resp.ok and resp.content[:5] == b"%PDF-":
-                return resp.content
-        except requests.RequestException:
-            continue
-    return None
+# PDF download logic (URL resolution, fallback, retry) lives in
+# bomi.analysis.download_pdf — reuse it here instead of re-implementing
+# the LCSC URL fallback regex, so the two can't silently drift apart.
+from bomi.analysis import download_pdf  # noqa: E402
 
 
 def analyze_with_model(api_key: str, model: str, pdf_b64: str) -> dict:

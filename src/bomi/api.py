@@ -1,4 +1,4 @@
-"""JLCPCB Search and LCSC Detail API clients."""
+"""JLCPCB Search API client, and OpenRouter model-pricing lookup."""
 
 import time
 
@@ -8,6 +8,8 @@ JLCPCB_SEARCH_URL = (
     "https://jlcpcb.com/api/overseas-pcb-order/v1/"
     "shoppingCart/smtGood/selectSmtComponentList"
 )
+
+OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -76,4 +78,32 @@ class JLCPCBClient:
         resp = self.session.post(JLCPCB_SEARCH_URL, json=body, timeout=30)
         resp.raise_for_status()
         return resp.json()
+
+
+def fetch_openrouter_model_pricing() -> dict[str, dict[str, float]]:
+    """Fetch current per-model pricing from OpenRouter's public model list.
+
+    Returns a dict keyed by model id, each value ``{"prompt": <usd/token>,
+    "completion": <usd/token>}``. This is a live lookup — no API key
+    required — used as a fallback when a response doesn't include actual
+    billed cost. Callers are expected to cache the result themselves since
+    pricing changes infrequently but this endpoint lists every model.
+    """
+    resp = requests.get(OPENROUTER_MODELS_URL, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+
+    pricing: dict[str, dict[str, float]] = {}
+    for entry in data.get("data", []):
+        model_id = entry.get("id")
+        prices = entry.get("pricing") or {}
+        if not model_id:
+            continue
+        try:
+            prompt = float(prices.get("prompt", 0) or 0)
+            completion = float(prices.get("completion", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        pricing[model_id] = {"prompt": prompt, "completion": completion}
+    return pricing
 

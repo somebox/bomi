@@ -101,7 +101,6 @@ class TestAnalysis:
             model="gemini-2.0-flash",
             prompt="What is the power rating?",
             response="The power rating is 1/16W (62.5mW).",
-            extracted_json='{"power_rating": "0.0625W"}',
             cost_usd=0.001,
         )
         aid = tmp_db.save_analysis(analysis)

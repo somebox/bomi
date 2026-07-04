@@ -19,3 +19,15 @@ openrouter_api_key: sk-or-v1-...
 # Optional: default output directory for `bomi datasheet` when -o/--output is not set.
 # Relative paths are resolved from the active project root when available, else current directory.
 # datasheet_output_dir: docs/datasheets
+
+# Optional: manual cost-per-token overrides for `bomi analyze`.
+#
+# bomi normally determines analysis cost from OpenRouter's actual billed
+# `usage.cost` on the response, falling back to a live lookup of
+# OpenRouter's published per-model pricing (cached locally and refreshed
+# periodically). These overrides are a last resort for models missing from
+# that lookup, or for offline use — rates are per 1,000,000 tokens, in USD.
+# cost_overrides:
+#   some-provider/some-model:
+#     prompt_per_1m: 3.0
+#     completion_per_1m: 15.0

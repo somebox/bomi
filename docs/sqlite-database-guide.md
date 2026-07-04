@@ -75,9 +75,8 @@ Saved datasheet analysis results.
 | `model` | TEXT | OpenRouter model name |
 | `prompt` | TEXT | User prompt |
 | `response` | TEXT | Markdown or plain text response |
-| `extracted_json` | TEXT | Reserved for structured extraction |
 | `created_at` | TEXT | ISO timestamp |
-| `cost_usd` | REAL | Estimated OpenRouter cost |
+| `cost_usd` | REAL | Cost in USD, or NULL if unknown. Preferentially the actual billed cost reported by OpenRouter; falls back to a live per-model pricing lookup (see `model_pricing` table below) or a configured override. |
 
 ### Table: `categories`
 
@@ -92,6 +91,20 @@ Cached category tree from `bomi sync`.
 | `part_count` | INTEGER | Approximate number of parts in this category |
 
 Primary key: `(name, provider)`
+
+### Table: `model_pricing`
+
+Local cache of OpenRouter's published per-model pricing (from
+`GET /api/v1/models`), used as a cost-estimation fallback when an analysis
+response doesn't include OpenRouter's actual billed `usage.cost`. Refreshed
+automatically when stale; see `analysis._get_model_rates`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `model_id` | TEXT PK | OpenRouter model id, e.g. `anthropic/claude-sonnet-4` |
+| `prompt_price` | REAL | USD per prompt token |
+| `completion_price` | REAL | USD per completion token |
+| `synced_at` | TEXT | ISO timestamp of last refresh |
 
 ### Table: `sync_meta`
 

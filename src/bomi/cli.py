@@ -25,6 +25,10 @@ from .output import (
 from .search import parse_attr_filters, search_local
 
 
+# Age threshold before a cached part or category sync is considered stale.
+CACHE_TTL_HOURS = 24
+
+
 def get_db() -> Database:
     return Database(get_db_path())
 
@@ -194,7 +198,7 @@ def fetch(ctx, lcsc_codes, fetch_all, force, fmt):
 
             if not force:
                 age = db.get_part_age_hours(code)
-                if age is not None and age < 24:
+                if age is not None and age < CACHE_TTL_HOURS:
                     part = db.get_part(code)
                     if part:
                         fetched.append(part)
@@ -376,7 +380,8 @@ def analyze(lcsc_code, prompt, model, pdf_engine, fmt):
             chunk_info = f" ({chunks} chunks)" if chunks > 1 else ""
             click.echo(f"Analysis of {code}{chunk_info}:")
             click.echo(f"Model: {result.get('model', 'N/A')}")
-            click.echo(f"Cost: ${result.get('cost_usd', 0):.4f}")
+            cost = result.get("cost_usd")
+            click.echo(f"Cost: ${cost:.4f}" if cost is not None else "Cost: unknown")
             click.echo("")
             click.echo(result.get("response", ""))
 
@@ -551,8 +556,9 @@ def datasheet(ctx, lcsc_codes, fetch_all, output, force, dl_pdf, dl_summary, pro
                     f"---\n\n"
                 )
                 md_path.write_text(header + result.get("response", ""))
-                cost = result.get("cost_usd", 0)
-                click.echo(f" {md_path} (${cost:.4f}{chunk_info})")
+                cost = result.get("cost_usd")
+                cost_str = f"${cost:.4f}" if cost is not None else "cost unknown"
+                click.echo(f" {md_path} ({cost_str}{chunk_info})")
 
 
 @cli.group()
@@ -640,7 +646,7 @@ def sync(force):
                 age_hours = (
                     datetime.now(timezone.utc) - last
                 ).total_seconds() / 3600
-                if age_hours < 24:
+                if age_hours < CACHE_TTL_HOURS:
                     click.echo(
                         f"Categories already synced {age_hours:.0f}h ago. "
                         "Use --force to refresh.",

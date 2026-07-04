@@ -2,9 +2,10 @@
 
 import json
 import pytest
+import requests
 from unittest.mock import patch, MagicMock
 
-from bomi.analysis import analyze_part, analyze_pdf, download_pdf, split_pdf, _estimate_cost
+from bomi.analysis import analyze_part, analyze_pdf, download_pdf, split_pdf, _cost_from_usage
 from bomi.models import Part, PriceTier, Attribute
 
 
@@ -113,7 +114,9 @@ class TestAnalyzePart:
         mock_response.ok = True
         mock_response.json.return_value = {
             "choices": [{"message": {"content": "Power rating: 1/16W"}}],
-            "usage": {"prompt_tokens": 100, "completion_tokens": 50},
+            "usage": {
+                "prompt_tokens": 100, "completion_tokens": 50, "cost": 0.0123,
+            },
         }
         mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
@@ -122,7 +125,8 @@ class TestAnalyzePart:
 
         result = analyze_part(tmp_db, part_with_datasheet)
         assert result["response"] == "Power rating: 1/16W"
-        assert result["cost_usd"] >= 0
+        assert result["cost_usd"] == pytest.approx(0.0123)
+        assert result["cost_source"] == "reported"
         assert result["chunks"] == 1
 
         # Verify stored in DB
@@ -190,10 +194,60 @@ class TestAnalyzePart:
         assert mock_post.call_args.kwargs["json"]["model"] == "openai/gpt-4.1"
 
 
-class TestEstimateCost:
-    def test_zero_usage(self):
-        assert _estimate_cost({}) == 0.0
+class TestCostFromUsage:
+    def test_reported_cost_used_directly(self):
+        cost, source = _cost_from_usage(
+            {"prompt_tokens": 1000, "completion_tokens": 500, "cost": 0.0042},
+            "anthropic/claude-sonnet-4.6",
+            db=None,
+        )
+        assert cost == pytest.approx(0.0042)
+        assert source == "reported"
 
-    def test_with_tokens(self):
-        cost = _estimate_cost({"prompt_tokens": 1000, "completion_tokens": 500})
-        assert cost > 0
+    def test_falls_back_to_pricing_lookup(self, tmp_db):
+        tmp_db.save_model_pricing(
+            {"some/model": {"prompt": 0.000003, "completion": 0.000015}}
+        )
+        cost, source = _cost_from_usage(
+            {"prompt_tokens": 1000, "completion_tokens": 500},
+            "some/model",
+            db=tmp_db,
+        )
+        assert cost == pytest.approx(1000 * 0.000003 + 500 * 0.000015)
+        assert source == "pricing_lookup"
+
+    def test_falls_back_to_config_override(self, tmp_db, monkeypatch):
+        monkeypatch.setattr(
+            "bomi.analysis.get_config",
+            lambda key, default=None: (
+                {"some/model": {"prompt_per_1m": 3.0, "completion_per_1m": 15.0}}
+                if key == "cost_overrides" else default
+            ),
+        )
+        monkeypatch.setattr(
+            "bomi.analysis.fetch_openrouter_model_pricing",
+            lambda: (_ for _ in ()).throw(requests.RequestException("offline")),
+        )
+        cost, source = _cost_from_usage(
+            {"prompt_tokens": 1_000_000, "completion_tokens": 1_000_000},
+            "some/model",
+            db=tmp_db,
+        )
+        assert cost == pytest.approx(18.0)
+        assert source == "config_override"
+
+    def test_unknown_when_nothing_available(self, tmp_db, monkeypatch):
+        monkeypatch.setattr(
+            "bomi.analysis.get_config", lambda key, default=None: default
+        )
+        monkeypatch.setattr(
+            "bomi.analysis.fetch_openrouter_model_pricing",
+            lambda: (_ for _ in ()).throw(requests.RequestException("offline")),
+        )
+        cost, source = _cost_from_usage(
+            {"prompt_tokens": 100, "completion_tokens": 50},
+            "some/model",
+            db=tmp_db,
+        )
+        assert cost is None
+        assert source == "unknown"

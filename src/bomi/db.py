@@ -52,7 +52,6 @@ CREATE TABLE IF NOT EXISTS analyses (
     model TEXT,
     prompt TEXT,
     response TEXT,
-    extracted_json TEXT,
     created_at TEXT,
     cost_usd REAL,
     FOREIGN KEY (lcsc_code) REFERENCES parts(lcsc_code) ON DELETE CASCADE
@@ -65,6 +64,13 @@ CREATE TABLE IF NOT EXISTS categories (
     sort_id INTEGER,
     part_count INTEGER,
     PRIMARY KEY (name, provider)
+);
+
+CREATE TABLE IF NOT EXISTS model_pricing (
+    model_id TEXT PRIMARY KEY,
+    prompt_price REAL NOT NULL,
+    completion_price REAL NOT NULL,
+    synced_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS sync_meta (
@@ -237,11 +243,11 @@ class Database:
         now = analysis.created_at or datetime.now(timezone.utc)
         cursor = self.conn.execute(
             """INSERT INTO analyses (lcsc_code, method, model, prompt, response,
-               extracted_json, created_at, cost_usd)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               created_at, cost_usd)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (
                 analysis.lcsc_code, analysis.method, analysis.model,
-                analysis.prompt, analysis.response, analysis.extracted_json,
+                analysis.prompt, analysis.response,
                 now.isoformat(), analysis.cost_usd,
             ),
         )
@@ -262,7 +268,6 @@ class Database:
                 model=r["model"] or "",
                 prompt=r["prompt"] or "",
                 response=r["response"] or "",
-                extracted_json=r["extracted_json"],
                 created_at=(
                     datetime.fromisoformat(r["created_at"])
                     if r["created_at"] else None
@@ -409,6 +414,47 @@ class Database:
                 (provider,),
             ).fetchall()
         return [dict(r) for r in rows]
+
+    def save_model_pricing(self, pricing: dict[str, dict[str, float]]):
+        """Replace the cached OpenRouter model-pricing table.
+
+        ``pricing`` maps model id to ``{"prompt": ..., "completion": ...}``
+        (USD per token), as returned by
+        ``api.fetch_openrouter_model_pricing()``.
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        self.conn.execute("DELETE FROM model_pricing")
+        for model_id, prices in pricing.items():
+            self.conn.execute(
+                "INSERT INTO model_pricing "
+                "(model_id, prompt_price, completion_price, synced_at) "
+                "VALUES (?, ?, ?, ?)",
+                (model_id, prices["prompt"], prices["completion"], now),
+            )
+        self.conn.commit()
+
+    def get_model_price(self, model_id: str) -> tuple[float, float] | None:
+        """Return ``(prompt_price, completion_price)`` per-token for a
+        cached model, or None if not cached."""
+        row = self.conn.execute(
+            "SELECT prompt_price, completion_price FROM model_pricing "
+            "WHERE model_id = ?",
+            (model_id,),
+        ).fetchone()
+        if not row:
+            return None
+        return row["prompt_price"], row["completion_price"]
+
+    def get_model_pricing_age_hours(self) -> float | None:
+        """Return hours since the model-pricing cache was last refreshed,
+        or None if it has never been populated."""
+        row = self.conn.execute(
+            "SELECT MAX(synced_at) AS synced_at FROM model_pricing"
+        ).fetchone()
+        if not row or not row["synced_at"]:
+            return None
+        synced_at = datetime.fromisoformat(row["synced_at"])
+        return (datetime.now(timezone.utc) - synced_at).total_seconds() / 3600
 
     def get_sync_time(self, provider: str = "jlcpcb") -> datetime | None:
         """Return last sync time for a provider, or None."""
