@@ -21,3 +21,6 @@ artifacts/datasheets/
 # Legacy local data (migrated to ~/Library/Application Support/jlcpcb/)
 data/
 secrets.yaml
+
+# KiCad per-user project settings (created by kicad-cli runs in tests)
+*.kicad_prl
