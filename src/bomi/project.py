@@ -263,3 +263,85 @@ def resolve_bom(project: Project) -> list[dict]:
 
             results.append(entry)
         return results
+
+
+@dataclass
+class ImportPlan:
+    """What importing a set of rows would do to a project's selections."""
+
+    added: list[Selection] = field(default_factory=list)
+    updated: list[tuple[Selection, Selection]] = field(default_factory=list)  # (before, after)
+    unchanged: list[Selection] = field(default_factory=list)
+    conflicts: list[tuple[Selection, Selection]] = field(default_factory=list)  # (imported, existing)
+    stale: list[Selection] = field(default_factory=list)  # existing refs not in the import
+    replace: bool = False
+
+    @property
+    def changes(self) -> int:
+        removed = len(self.stale) if self.replace else 0
+        return len(self.added) + len(self.updated) + removed
+
+
+def _overlaps(a: str, b: str) -> bool:
+    """refs_overlap that tolerates hand-written refs bomi can't parse (they only match themselves)."""
+    try:
+        return refs_overlap(a, b)
+    except ValueError:
+        return a == b
+
+
+def plan_import(project: Project, rows, replace: bool = False) -> ImportPlan:
+    """Plan merging imported rows (objects with ref, lcsc, quantity, value) into a project.
+
+    Default (merge): new refs are added, refs that already exist with the same
+    extent are updated in place (notes and alternatives kept), and imported refs
+    that only partly overlap an existing entry are reported as conflicts and skipped.
+    Existing entries the import does not mention are reported as stale and kept.
+
+    With ``replace``: the BOM becomes exactly the imported rows. Notes and
+    alternatives carry over for refs whose extent is unchanged; conflicts cannot
+    occur and stale entries are removed.
+    """
+    plan = ImportPlan(replace=replace)
+    existing_by_ref = {s.ref: s for s in project.selections}
+    imported_refs: list[str] = []
+
+    for row in rows:
+        ref = normalize_ref(row.ref)
+        imported_refs.append(ref)
+        new = Selection(ref=ref, lcsc=row.lcsc, quantity=row.quantity, notes=row.value or "")
+        current = existing_by_ref.get(ref)
+        if current is not None:
+            if current.lcsc == new.lcsc and current.quantity == new.quantity:
+                plan.unchanged.append(current)
+            else:
+                after = Selection(ref=ref, lcsc=new.lcsc, quantity=new.quantity,
+                                  notes=current.notes, alternatives=current.alternatives)
+                plan.updated.append((current, after))
+            continue
+        clash = next((s for s in project.selections if _overlaps(s.ref, ref)), None)
+        if clash is not None and not replace:
+            plan.conflicts.append((new, clash))
+            continue
+        plan.added.append(new)
+
+    for sel in project.selections:
+        if not any(_overlaps(sel.ref, r) for r in imported_refs) or (
+            replace and sel.ref not in imported_refs
+        ):
+            plan.stale.append(sel)
+    return plan
+
+
+def apply_import(project: Project, plan: ImportPlan) -> None:
+    """Write an ImportPlan to the project file."""
+    if plan.replace:
+        project.selections = (
+            list(plan.unchanged) + [after for _, after in plan.updated] + list(plan.added)
+        )
+    else:
+        by_ref = {s.ref: s for s in project.selections}
+        for before, after in plan.updated:
+            by_ref[before.ref] = after
+        project.selections = list(by_ref.values()) + list(plan.added)
+    save_project(project)

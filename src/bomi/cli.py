@@ -923,3 +923,135 @@ def status(ctx):
             click.echo(f"  ⚠ {w}")
     else:
         click.echo("Warnings:   none")
+
+
+# ── Import from EDA tools ──────────────────────────────────────────
+
+
+@cli.group(name="import")
+def import_group():
+    """Import BOM data from EDA tools into the project."""
+
+
+def _fetch_uncached(codes: list[str]) -> list[str]:
+    """Cache LCSC parts that are not in the local DB yet. Returns codes not found."""
+    missing = []
+    with get_db() as db:
+        todo = [c for c in codes if not db.get_part(c)]
+        if not todo:
+            return []
+        click.echo(f"Fetching {len(todo)} part(s)...", err=True)
+        client = JLCPCBClient()
+        for code in todo:
+            try:
+                parts = normalize_search_response(client.search(code, page_size=5))
+            except (requests.RequestException, KeyError, TypeError, ValueError) as e:
+                click.echo(f"  {code}: fetch failed ({e})", err=True)
+                missing.append(code)
+                continue
+            match = next((p for p in parts if p.lcsc_code == code), None)
+            if match:
+                db.upsert_part(match)
+            else:
+                missing.append(code)
+    return missing
+
+
+@import_group.command(name="kicad")
+@click.argument("source", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--field", "lcsc_field", default=None,
+              help="Symbol field holding LCSC numbers (default: auto-detect LCSC, "
+                   "LCSC Part #, JLCPCB Part #, ...)")
+@click.option("--replace", is_flag=True,
+              help="Make the BOM exactly match KiCad: remove entries KiCad no longer has")
+@click.option("--include-missing", is_flag=True,
+              help="Add components without an LCSC number as TBD entries")
+@click.option("--include-dnp", is_flag=True, help="Include components marked Do-Not-Populate")
+@click.option("--dry-run", is_flag=True, help="Show what would change without writing")
+@click.option("--no-fetch", is_flag=True, help="Don't fetch uncached parts from JLCPCB")
+@click.option("--kicad-cli", "kicad_cli", default=None,
+              help="Path to kicad-cli (default: BOMI_KICAD_CLI, PATH, or the standard install)")
+@click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table",
+              help="Output format")
+@click.pass_context
+def import_kicad(ctx, source, lcsc_field, replace, include_missing, include_dnp,
+                 dry_run, no_fetch, kicad_cli, fmt):
+    """Import LCSC selections from a KiCad schematic, project or BOM CSV.
+
+    SOURCE is a root .kicad_sch or .kicad_pro (exported with kicad-cli), or a
+    BOM .csv exported from KiCad. Components sharing an LCSC number become one
+    entry per contiguous reference range (e.g. R211-R218), with the KiCad value
+    as notes. Re-running updates the BOM in place; use --dry-run to preview.
+    """
+    from .kicad import KicadImportError, read_kicad_bom
+    from .project import apply_import, plan_import
+
+    project = _require_project(ctx)
+    try:
+        bom = read_kicad_bom(source, lcsc_field=lcsc_field, kicad_cli=kicad_cli,
+                             include_missing=include_missing, include_dnp=include_dnp)
+    except KicadImportError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+    plan = plan_import(project, bom.rows, replace=replace)
+    not_found: list[str] = []
+    if not dry_run:
+        apply_import(project, plan)
+        if not no_fetch:
+            codes = sorted({r.lcsc for r in bom.rows if r.lcsc})
+            not_found = _fetch_uncached(codes)
+
+    sel = lambda s: {"ref": s.ref, "lcsc": s.lcsc, "quantity": s.quantity}  # noqa: E731
+    report = {
+        "source": str(source),
+        "lcsc_field": bom.lcsc_field,
+        "components": len(bom.components),
+        "dry_run": dry_run,
+        "replace": replace,
+        "added": [sel(s) for s in plan.added],
+        "updated": [{"ref": b.ref, "from": sel(b), "to": sel(a)} for b, a in plan.updated],
+        "unchanged": [s.ref for s in plan.unchanged],
+        "conflicts": [{"imported": sel(i), "existing": sel(e)} for i, e in plan.conflicts],
+        "removed" if replace else "not_in_kicad": [sel(s) for s in plan.stale],
+        "missing_lcsc": bom.missing_lcsc,
+        "invalid_lcsc": bom.invalid_lcsc,
+        "skipped_dnp": bom.skipped_dnp,
+        "invalid_refs": bom.invalid_refs,
+        "not_found_on_jlcpcb": not_found,
+    }
+
+    if fmt == "json":
+        click.echo(format_envelope("ok", "import kicad", [report], count=len(bom.rows)))
+        return
+
+    field_note = f"LCSC field: {bom.lcsc_field}" if bom.lcsc_field else "no LCSC values found"
+    click.echo(f"Read {len(bom.components)} component(s) from {source.name} ({field_note})")
+    click.echo(f"  Added:      {len(plan.added)}")
+    for s in plan.added:
+        click.echo(f"    + {s.ref:<12} {s.lcsc or 'TBD':<10} x{s.quantity}  {s.notes}")
+    click.echo(f"  Updated:    {len(plan.updated)}")
+    for b, a in plan.updated:
+        click.echo(f"    ~ {b.ref:<12} {b.lcsc or 'TBD'} x{b.quantity} → {a.lcsc or 'TBD'} x{a.quantity}")
+    click.echo(f"  Unchanged:  {len(plan.unchanged)}")
+    if plan.conflicts:
+        click.echo(f"  Conflicts:  {len(plan.conflicts)}  (skipped; re-run with --replace to adopt KiCad's grouping)")
+        for i, e in plan.conflicts:
+            click.echo(f"    ! {i.ref} ({i.lcsc}) overlaps existing {e.ref} ({e.lcsc})")
+    if plan.stale:
+        label = "Removed:   " if replace else "Not in KiCad:"
+        click.echo(f"  {label} {len(plan.stale)}  {', '.join(s.ref for s in plan.stale)}")
+    if bom.missing_lcsc and not include_missing:
+        click.echo(f"  No LCSC:    {', '.join(bom.missing_lcsc)}  (use --include-missing to track as TBD)")
+    if bom.invalid_lcsc:
+        click.echo("  Bad LCSC:   " + ", ".join(f"{x['ref']}={x['value']!r}" for x in bom.invalid_lcsc))
+    if bom.skipped_dnp:
+        click.echo(f"  DNP:        {', '.join(bom.skipped_dnp)}")
+    if bom.invalid_refs:
+        click.echo(f"  Skipped refs bomi can't store: {', '.join(bom.invalid_refs)}")
+    if not_found:
+        click.echo(f"  Not found on JLCPCB: {', '.join(not_found)}")
+    if dry_run:
+        click.echo("Dry run: nothing written.")
+    else:
+        click.echo(f"Wrote {project.project_yaml_path}")

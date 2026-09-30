@@ -217,3 +217,39 @@ bomi status
 bomi db stats
 bomi db clear
 ```
+
+## KiCad Import
+
+```bash
+# Preview what a KiCad project would add to the BOM (needs kicad-cli, KiCad 7+)
+bomi import kicad hardware/board.kicad_pro --dry-run
+
+# Import from the root schematic, or from a BOM CSV exported by KiCad
+bomi import kicad hardware/board.kicad_sch
+bomi import kicad hardware/bom.csv
+
+# The LCSC number lives in a differently named field
+bomi import kicad hardware/board.kicad_pro --field "JLC_PN"
+
+# Make the BOM exactly match KiCad, and track parts that have no LCSC number yet
+bomi import kicad hardware/board.kicad_pro --replace --include-missing
+
+# Machine-readable change report
+bomi import kicad hardware/board.kicad_pro --dry-run --format json
+```
+
+Example summary:
+
+```text
+Read 440 component(s) from char-module.kicad_pro (LCSC field: LCSC)
+  Added:      29
+    + D1-D384      C965791    x384  XL-1005UOC
+    + J101-J102    C378994    x2  BUS_IN / BUS_OUT
+    + R211-R218    C25744     x8  10k
+    ...
+  Updated:    0
+  Unchanged:  0
+  No LCSC:    P101-P102  (use --include-missing to track as TBD)
+Wrote .bomi/project.yaml
+```
+

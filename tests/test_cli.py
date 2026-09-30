@@ -652,3 +652,70 @@ class TestDatasheet:
 
         pdf_path = tmp_path / "my-datasheets" / "RC0402FR-0710KL_C8287.pdf"
         assert pdf_path.exists()
+
+
+class TestImportKicad:
+    FIXTURE = str(__import__("pathlib").Path(__file__).parent / "fixtures" / "kicad" / "bom_grouped.csv")
+
+    @pytest.fixture
+    def project_dir(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("BOMI_PROJECT", raising=False)
+        runner.invoke(cli, ["init", "--name", "board"])
+        return tmp_path
+
+    def test_import_writes_selections(self, runner, project_dir, patched_db, monkeypatch):
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        result = runner.invoke(cli, ["import", "kicad", self.FIXTURE, "--no-fetch"])
+        assert result.exit_code == 0, result.output
+        assert "Added:      4" in result.output
+        assert "No LCSC:    H1" in result.output
+        data = yaml.safe_load((project_dir / ".bomi" / "project.yaml").read_text())
+        refs = {s["ref"]: s for s in data["selections"]}
+        assert refs["R1-R3"] == {"ref": "R1-R3", "lcsc": "C25744", "quantity": 3, "notes": "10k"}
+        assert refs["U1"]["lcsc"] == "C41378174"
+
+    def test_dry_run_writes_nothing(self, runner, project_dir, patched_db):
+        result = runner.invoke(cli, ["import", "kicad", self.FIXTURE, "--dry-run"])
+        assert result.exit_code == 0, result.output
+        assert "Dry run" in result.output
+        data = yaml.safe_load((project_dir / ".bomi" / "project.yaml").read_text())
+        assert data["selections"] == []
+
+    def test_json_output(self, runner, project_dir, patched_db):
+        result = runner.invoke(cli, ["import", "kicad", self.FIXTURE, "--dry-run", "--format", "json"])
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["command"] == "import kicad"
+        report = data["results"][0]
+        assert report["lcsc_field"] == "LCSC Part #"
+        assert {a["ref"] for a in report["added"]} == {"R1-R3", "R7", "C1-C2", "U1"}
+        assert report["missing_lcsc"] == ["H1"]
+
+    def test_fetches_uncached_parts(self, runner, project_dir, patched_db, monkeypatch):
+        fetched = []
+        monkeypatch.setattr("bomi.cli._fetch_uncached", lambda codes: fetched.extend(codes) or [])
+        result = runner.invoke(cli, ["import", "kicad", self.FIXTURE])
+        assert result.exit_code == 0, result.output
+        assert fetched == ["C1525", "C25744", "C41378174"]
+
+    def test_conflict_reported(self, runner, project_dir, patched_db, monkeypatch):
+        monkeypatch.setattr("bomi.project.get_db_path", lambda: patched_db.db_path)
+        runner.invoke(cli, ["select", "C8287", "--ref", "R1-R2", "--qty", "2"])
+        result = runner.invoke(cli, ["import", "kicad", self.FIXTURE, "--no-fetch"])
+        assert result.exit_code == 0, result.output
+        assert "R1-R3 (C25744) overlaps existing R1-R2" in result.output
+
+    def test_requires_project(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("BOMI_PROJECT", raising=False)
+        result = runner.invoke(cli, ["import", "kicad", self.FIXTURE])
+        assert result.exit_code != 0
+        assert "No project found" in result.output
+
+    def test_bad_source(self, runner, project_dir, tmp_path):
+        bad = tmp_path / "board.kicad_pcb"
+        bad.write_text("")
+        result = runner.invoke(cli, ["import", "kicad", str(bad)])
+        assert result.exit_code != 0
+        assert "Unsupported file type" in result.output

@@ -16,6 +16,7 @@ In practice, `bomi` is used inside a hardware project folder: `.bomi/project.yam
 - `select` fetches the part automatically if it is not already cached.
 - `select`, `list`/`bom`, `status`, `deselect`, and `relabel` need project context (a `.bomi/project.yaml` in the tree).
 - `fetch --all` and `datasheet --all` use selected parts from the active project BOM.
+- `import kicad` needs project context. It reads LCSC numbers from KiCad symbol fields, groups refs into ranges, and merges into the BOM. Preview with `--dry-run`; `--format json` gives a machine-readable change report.
 - `status` is text-only. `list --format json` (and `bom --format json`) uses a different JSON shape than most other commands.
 
 ## Quick Reference
@@ -45,6 +46,8 @@ In practice, `bomi` is used inside a hardware project folder: `.bomi/project.yam
 | `bomi list --check` | Refresh BOM stock and pricing from live catalog |
 | `bomi list --format json` | Export BOM as JSON |
 | `bomi status` | Show project summary with cost estimate and warnings |
+| `bomi import kicad board.kicad_pro` | Import LCSC selections from a KiCad project (or `.kicad_sch` / BOM `.csv`) |
+| `bomi import kicad board.kicad_pro --dry-run --format json` | Preview the import as a JSON change report |
 | `bomi db stats` | Show local cache statistics |
 
 ## Common Flows
@@ -94,6 +97,19 @@ bomi list
 bomi list --check
 bomi status
 ```
+
+### Import a KiCad BOM
+
+When the schematic already has LCSC numbers in a symbol field, import them and let `bomi` check stock and cost:
+
+```bash
+bomi init --name "My Board"
+bomi import kicad hardware/board.kicad_pro --dry-run   # added / updated / conflicts / missing LCSC
+bomi import kicad hardware/board.kicad_pro
+bomi status
+```
+
+Re-run after schematic changes; it only updates what changed. Use `--replace` when KiCad should fully define the BOM, `--include-missing` to track parts without an LCSC number as TBD, and `--field` if the LCSC field has an unusual name.
 
 ### Work with datasheets
 

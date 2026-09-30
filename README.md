@@ -118,6 +118,23 @@ bomi deselect C2
 - creates `.bomi/project.yaml`
 - appends datasheet PDF ignore rules to `.gitignore`
 
+### Importing from KiCad
+
+If your KiCad symbols already carry LCSC numbers (a field named `LCSC`, `LCSC Part #`, `JLCPCB Part #`, ...), import them instead of selecting parts one by one:
+
+```bash
+cd my-pcb-project
+bomi init --name "my-board"
+bomi import kicad hardware/my-board.kicad_pro --dry-run   # preview
+bomi import kicad hardware/my-board.kicad_pro             # write .bomi/project.yaml, fetch parts
+bomi status                                               # cost estimate + stock warnings
+```
+
+- Schematics and projects are exported with `kicad-cli` (KiCad 7+). bomi finds it on `PATH`, at the standard install location, or via `--kicad-cli` / `BOMI_KICAD_CLI`. A BOM CSV exported from KiCad works without KiCad installed.
+- Components sharing an LCSC number become one entry per contiguous reference range (`R211-R218`, `D1-D384`), with the KiCad value as notes.
+- Re-running is safe: unchanged entries stay as they are, changed parts are updated in place (notes and alternatives kept), and overlapping hand-made entries are reported as conflicts. `--replace` makes the BOM exactly match KiCad.
+- Components without an LCSC number, DNP parts, and designators bomi cannot store are listed in the summary. `--include-missing` tracks the missing ones as TBD entries; `--field NAME` picks a specific symbol field.
+
 ### Project Resolution
 
 Project context is resolved in this order:
@@ -160,6 +177,7 @@ export BOMI_PROJECT=/path/to/my-pcb-project
 | `relabel <old> <new>` | Rename a BOM entry reference |
 | `list` | Show the BOM with cached part data (`bom` is an alias) |
 | `status` | Show project summary, cost estimate, and warnings |
+| `import kicad <source>` | Import LCSC selections from a KiCad `.kicad_sch`/`.kicad_pro` or BOM `.csv` |
 
 ## Output Formats
 
@@ -237,9 +255,10 @@ src/bomi/
   config.py      config and path handling
   db.py          SQLite schema and persistence (Database supports `with ... as db`)
   filters.py     shared package/stock/price/--attr rules for search vs query
+  kicad.py       KiCad BOM import (kicad-cli export, CSV parsing, ref grouping)
   normalize.py   API response normalization
   output.py      table/json/csv/markdown formatters and BOM views for list/bom
-  project.py     project file and BOM handling
+  project.py     project file and BOM handling, import planning
   scrape.py      category tree scraper for JLCPCB
   search.py      local cache query helpers
 ```

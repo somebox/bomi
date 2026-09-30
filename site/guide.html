@@ -95,6 +95,7 @@
           <tr><td>bomi list --check</td><td>Refresh BOM stock and pricing from live catalog</td></tr>
           <tr><td>bomi list --format json</td><td>Export BOM as JSON</td></tr>
           <tr><td>bomi status</td><td>Show project summary with cost estimate and warnings</td></tr>
+          <tr><td>bomi import kicad board.kicad_pro</td><td>Import LCSC selections from a KiCad project (or <code>.kicad_sch</code> / BOM <code>.csv</code>)</td></tr>
           <tr><td>bomi db stats</td><td>Show local cache statistics</td></tr>
         </tbody>
       </table>
@@ -147,6 +148,17 @@ bomi select C8678 --ref D3 --qty 1 --notes "catch diode"
 bomi list
 bomi list --check
 bomi status</code></pre>
+
+      <h3>Import a KiCad BOM</h3>
+      <pre class="cmd"><code class="language-bash">bomi init --name "My Board"
+bomi import kicad hardware/board.kicad_pro --dry-run
+bomi import kicad hardware/board.kicad_pro
+bomi status</code></pre>
+      <p>
+        Reads LCSC numbers from KiCad symbol fields (<code>LCSC</code>, <code>LCSC Part #</code>, <code>JLCPCB Part #</code>, ...)
+        via <code>kicad-cli</code>, or from a KiCad BOM CSV. Parts sharing an LCSC number become one entry per reference range
+        (<code>R211-R218</code>). Re-run after schematic changes; <code>--replace</code> makes the BOM match KiCad exactly.
+      </p>
 
       <h3>Work with datasheets</h3>
       <pre class="cmd"><code class="language-bash">bomi fetch C9865

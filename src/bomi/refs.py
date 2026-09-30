@@ -76,3 +76,54 @@ def ref_sort_key(ref: str) -> tuple:
     """Sort refs by prefix, then numeric span."""
     parsed = parse_ref(ref)
     return (parsed.prefix, parsed.start, parsed.end)
+
+
+_SPLIT_RE = re.compile(r"[,;\s]+")
+
+
+def expand_refs(text: str) -> list[str]:
+    """Expand a reference list such as "R1, R2 R5-R7" into single references.
+
+    Accepts the separators EDA tools use (comma, semicolon, whitespace) and
+    ranges in either "R5-R7" or "R5-7" form. Items that are not valid
+    designators (e.g. "J_PWR1") are returned unchanged so callers can report them.
+    """
+    refs: list[str] = []
+    for item in _SPLIT_RE.split(text.strip()):
+        if not item:
+            continue
+        short = re.fullmatch(r"([A-Za-z]+)(\d+)-(\d+)", item)
+        if short:
+            item = f"{short.group(1)}{short.group(2)}-{short.group(1)}{short.group(3)}"
+        try:
+            spec = parse_ref(item)
+        except ValueError:
+            refs.append(item)
+            continue
+        refs.extend(f"{spec.prefix}{n}" for n in range(spec.start, spec.end + 1))
+    return refs
+
+
+def compress_refs(refs: list[str]) -> list[str]:
+    """Collapse single references into canonical ranges, e.g. R1 R2 R3 R5 -> R1-R3, R5.
+
+    Only consecutive numbers with the same prefix are merged. Input must be valid
+    single designators; duplicates are ignored.
+    """
+    by_prefix: dict[str, set[int]] = {}
+    for ref in refs:
+        spec = parse_ref(ref)
+        by_prefix.setdefault(spec.prefix, set()).update(range(spec.start, spec.end + 1))
+
+    result: list[str] = []
+    for prefix in sorted(by_prefix):
+        nums = sorted(by_prefix[prefix])
+        start = prev = nums[0]
+        for n in nums[1:] + [None]:
+            if n is not None and n == prev + 1:
+                prev = n
+                continue
+            result.append(RefSpec(prefix, start, prev).canonical())
+            if n is not None:
+                start = prev = n
+    return result
