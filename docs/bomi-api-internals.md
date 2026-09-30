@@ -137,8 +137,9 @@ Category names from this page correspond to the `componentType` API filter and t
 | `scrape.py` | Scrapes the JLCPCB category tree page and populates the `categories` and `sync_meta` tables. |
 | `analysis.py` | Datasheet analysis via OpenRouter: PDF upload, chunking, synthesis. |
 | `output.py` | Part formatters; BOM JSON/CSV/markdown/table for `list` / `bom`. |
-| `project.py` | Load, save, and mutate `.bomi/project.yaml` (selections, relabeling). |
-| `refs.py` | Reference designator parsing and expansion (e.g. `R1-R4` → individual refs). |
+| `project.py` | Load, save, and mutate `.bomi/project.yaml` (selections, relabeling, import planning via `plan_import` / `apply_import`). |
+| `kicad.py` | KiCad BOM import: runs `kicad-cli sch export bom` (one row per component, LCSC field aliases), parses KiCad BOM CSVs, groups refs by LCSC code into ranges. |
+| `refs.py` | Reference designator parsing, expansion (`expand_refs`: `R1-R4` → individual refs) and compression (`compress_refs`: individual refs → ranges). |
 | `config.py` | Config loading from `config.yaml` and env var overrides; OS data directory resolution. |
 | `units.py` | SI prefix parsing and numeric value normalization for attribute filtering. |
 

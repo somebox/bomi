@@ -26,7 +26,7 @@ Open questions: which distributors matter most for your users (prototype vs prod
 
 **Import** could mean:
 
-- **From EDA** — KiCad BOM CSV, Altium pick-and-place / BOM export, generic CSV with ref, MPN, LCSC, quantity, etc.
+- **From EDA** — KiCad is supported via `bomi import kicad` (schematic, project or BOM CSV, LCSC field). Still open: Altium pick-and-place / BOM export, generic CSV with ref, MPN, LCSC, quantity, etc.
 - **From spreadsheets** — reconciling designator ↔ LCSC (or MPN) columns into `select`-equivalent rows.
 
 Challenges: mapping columns reliably, handling duplicate refs, merge vs replace semantics for `project.yaml`, and validation (missing LCSC, stale stock) after import.
